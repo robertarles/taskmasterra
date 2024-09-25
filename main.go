@@ -54,6 +54,45 @@ func isTouchedTask(line string) bool {
 	return true
 }
 
+func isTaskForToday(line string) bool {
+	// Determine if a task is to be worked on today based on your criteria
+	return isTouchedTask(line)
+}
+
+func addToReminders(task, listName string) error {
+	// Create the AppleScript command to add the reminder
+	appleScript := fmt.Sprintf(`
+		tell application "Reminders"
+			if not (exists list "%s") then
+				make new list with properties {name:"%s"}
+			end if
+			set dueDate to current date
+			set hours of dueDate to 16
+			set minutes of dueDate to 0
+			set seconds of dueDate to 0
+			tell list "%s"
+				make new reminder with properties {name:"%s", due date:dueDate}
+			end tell
+		end tell
+	`, listName, listName, listName, task)
+
+	// Execute the AppleScript using osascript
+	cmd := exec.Command("osascript", "-e", appleScript)
+
+	// Capture the standard output and error
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("osascript error: %v: %s", err, stderr.String())
+	}
+
+	return nil
+}
+
 func expandPath(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
 		homeDir, err := os.UserHomeDir()
@@ -105,13 +144,13 @@ func recordKeep(filePath string) {
 		}
 	}
 
-	// Read the markdown file
-	markdownContentBytes, err := ioutil.ReadFile(expandedFilePath)
+	// Read the markdown file into lines
+	fileContent, err := ioutil.ReadFile(expandedFilePath)
 	if err != nil {
 		fmt.Println("Error reading markdown file:", err)
 		return
 	}
-	markdownLines := strings.Split(string(markdownContentBytes), "\n")
+	lines := strings.Split(string(fileContent), "\n")
 
 	// Get the current time in UTC
 	currentTime := time.Now().UTC()
@@ -119,39 +158,59 @@ func recordKeep(filePath string) {
 
 	var xjournalEntries []string
 	var xarchiveEntries []string
-	var updatedMarkdownLines []string
+	linesToRemove := make(map[int]bool)
 
-	for _, line := range markdownLines {
+	for idx, line := range lines {
+		if isTouchedTask(line) {
+			// Prepare entry for xjournal file with timestamp
+			entry := fmt.Sprintf("%s %s", timestamp, line)
+			xjournalEntries = append(xjournalEntries, entry)
+			fmt.Printf("Recording touched task to journal: %s\n", entry)
+			// Do not modify the markdown file for touched tasks
+		}
 		if isCompletedTask(line) {
 			// Prepare entry for xarchive file with timestamp
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xarchiveEntries = append(xarchiveEntries, entry)
 			fmt.Printf("Recording completed task to archive: %s\n", entry)
-			// Do not add this line to updatedMarkdownLines; it will be removed
-		} else {
-			// Keep the line in the markdown file
-			updatedMarkdownLines = append(updatedMarkdownLines, line)
-			// Check for touched tasks for journaling
-			if isTouchedTask(line) {
-				entry := fmt.Sprintf("%s %s", timestamp, line)
-				xjournalEntries = append(xjournalEntries, entry)
-				fmt.Printf("Recording touched task to journal: %s\n", entry)
-			}
+			// Mark the line for removal after successful addition to archive
+			linesToRemove[idx] = true
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading markdown file:", err)
+		return
+	}
 
-	// First, write to the archive file
+	// Write to xarchive file first
 	if len(xarchiveEntries) > 0 {
 		newXarchiveContent := []byte(strings.Join(xarchiveEntries, "\n") + "\n")
 		newXarchiveContent = append(newXarchiveContent, xarchiveContent...)
 		err = ioutil.WriteFile(xarchivePath, newXarchiveContent, 0644)
 		if err != nil {
 			fmt.Println("Error writing to xarchive file:", err)
+			fmt.Println("Aborting removal of completed tasks from markdown file due to error.")
+			return
+		}
+
+		// Remove the lines that were successfully added to the archive
+		var updatedLines []string
+		for idx, line := range lines {
+			if !linesToRemove[idx] {
+				updatedLines = append(updatedLines, line)
+			} else {
+				fmt.Printf("Removing completed task from markdown file: %s\n", line)
+			}
+		}
+		// Write back the updated markdown file
+		err = ioutil.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
+		if err != nil {
+			fmt.Println("Error writing updated markdown file:", err)
 			return
 		}
 	}
 
-	// Next, write to the journal file
+	// Write to xjournal file
 	if len(xjournalEntries) > 0 {
 		newXjournalContent := []byte(strings.Join(xjournalEntries, "\n") + "\n")
 		newXjournalContent = append(newXjournalContent, xjournalContent...)
@@ -162,15 +221,7 @@ func recordKeep(filePath string) {
 		}
 	}
 
-	// Finally, write the updated markdown content back to the file
-	updatedMarkdownContent := strings.Join(updatedMarkdownLines, "\n")
-	err = ioutil.WriteFile(expandedFilePath, []byte(updatedMarkdownContent), 0644)
-	if err != nil {
-		fmt.Println("Error writing updated markdown file:", err)
-		return
-	}
-
-	fmt.Println("Tasks have been recorded and markdown file updated successfully.")
+	fmt.Println("Tasks have been recorded successfully.")
 }
 
 func updateCalendar(filePath string) {
