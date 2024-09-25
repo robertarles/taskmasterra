@@ -18,7 +18,10 @@ func isCompletedTask(line string) bool {
 	return strings.HasPrefix(line, "- [√]") || strings.HasPrefix(line, "- [x]") || strings.HasPrefix(line, "- [X]")
 }
 
-func isTouchedTask(line string) bool {
+/**
+	* active can be either active(.) or active and touched(:)
+  **/
+func isActiveTask(line string) bool {
 	// Check if the line starts with "- ["
 	if !strings.HasPrefix(line, "- [") {
 		return false
@@ -54,10 +57,50 @@ func isTouchedTask(line string) bool {
 	return true
 }
 
+/**
+ * active AND touched is a :
+ * this does not cover active (.) not yet touched (:)
+ **/
+func isTouchedTask(line string) bool {
+	// Check if the line starts with "- ["
+	if !strings.HasPrefix(line, "- [") {
+		return false
+	}
+
+	// Find the position of the closing bracket ']'
+	closingBracketIndex := strings.Index(line, "]")
+	if closingBracketIndex == -1 {
+		return false
+	}
+
+	// Ensure there's enough length for the expected pattern
+	if len(line) <= closingBracketIndex+3 {
+		return false
+	}
+
+	// Check for space after closing bracket
+	if line[closingBracketIndex+1] != ' ' {
+		return false
+	}
+
+	// Check if the next character is '.' or ':'
+	marker := line[closingBracketIndex+2]
+	if marker != ':' {
+		return false
+	}
+
+	// Check for space after the marker
+	if line[closingBracketIndex+3] != ' ' {
+		return false
+	}
+
+	return true
+}
+
 func isTaskForToday(line string) bool {
 	// Determine if a task is to be worked on today based on your criteria
-	// For this example, we'll consider tasks marked with a "." or ":" after the checkbox
-	return isTouchedTask(line)
+	// we'll consider tasks marked with an active task
+	return isActiveTask(line)
 }
 
 func expandPath(path string) (string, error) {
