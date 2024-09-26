@@ -277,6 +277,12 @@ func replaceMarker(line string, oldMarker, newMarker rune) string {
 	}
 	return line // Return unmodified if the marker is not oldMarker
 }
+
+func isTask(line string) bool {
+	// Check if the line starts with "- ["
+	return strings.HasPrefix(line, "- [")
+}
+
 func updateCalendar(filePath string) {
 	// Expand ~ and $HOME in filePath
 	expandedFilePath, err := expandPath(filePath)
@@ -308,19 +314,30 @@ func updateCalendar(filePath string) {
 	// Read the file line by line
 	scanner := bufio.NewScanner(file)
 	var tasksForToday []string
+	var tasksWithoutDueDate []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		if isTaskForToday(line) {
-			// Include the checkbox, exclude the leading hyphen and space
-			taskDescription := strings.TrimSpace(line[2:])
+		if isTask(line) && !isCompletedTask(line) {
+			// Find the position of the closing bracket ']'
+			closingBracketIndex := strings.Index(line, "]")
+			if closingBracketIndex != -1 {
+				// Extract the task description after the ']'
+				taskDescription := strings.TrimSpace(line[closingBracketIndex+1:])
+				withDueDate := isTaskForToday(line)
 
-			// Add the task to macOS Reminders with today's date at 4:00 PM
-			if err := addToReminders(taskDescription, listName); err != nil {
-				fmt.Printf("Failed to add task '%s' to Reminders: %v\n", taskDescription, err)
-			} else {
-				tasksForToday = append(tasksForToday, taskDescription)
-				fmt.Printf("Added task '%s' to Reminders list '%s'.\n", taskDescription, listName)
+				// Add the task to macOS Reminders
+				if err := addToReminders(taskDescription, listName, withDueDate); err != nil {
+					fmt.Printf("Failed to add task '%s' to Reminders: %v\n", taskDescription, err)
+				} else {
+					if withDueDate {
+						tasksForToday = append(tasksForToday, taskDescription)
+						fmt.Printf("Added task '%s' to Reminders list '%s' with due date.\n", taskDescription, listName)
+					} else {
+						tasksWithoutDueDate = append(tasksWithoutDueDate, taskDescription)
+						fmt.Printf("Added task '%s' to Reminders list '%s' without due date.\n", taskDescription, listName)
+					}
+				}
 			}
 		}
 	}
@@ -332,31 +349,52 @@ func updateCalendar(filePath string) {
 
 	// Print tasks that are marked for today
 	if len(tasksForToday) > 0 {
-		fmt.Println("\nTasks to be worked on today:")
+		fmt.Println("\nTasks with due date:")
 		for _, task := range tasksForToday {
 			fmt.Println(task)
 		}
 	} else {
-		fmt.Println("No tasks marked for today.")
+		fmt.Println("No tasks with due date.")
+	}
+
+	// Optionally, print tasks without due date
+	if len(tasksWithoutDueDate) > 0 {
+		fmt.Println("\nTasks without due date:")
+		for _, task := range tasksWithoutDueDate {
+			fmt.Println(task)
+		}
 	}
 }
 
-func addToReminders(task, listName string) error {
+func addToReminders(task, listName string, withDueDate bool) error {
+	// Build the properties string
+	properties := fmt.Sprintf(`{name:"%s"`, task)
+	if withDueDate {
+		properties += `, due date:dueDate`
+	}
+	properties += `}`
+
+	// Build the due date setup code
+	dueDateSetup := ""
+	if withDueDate {
+		dueDateSetup = `
+            set dueDate to current date
+            set hours of dueDate to 16
+            set minutes of dueDate to 0
+            set seconds of dueDate to 0`
+	}
+
 	// Create the AppleScript command to add the reminder
 	appleScript := fmt.Sprintf(`
-		tell application "Reminders"
-			if not (exists list "%s") then
-				make new list with properties {name:"%s"}
-			end if
-			set dueDate to current date
-			set hours of dueDate to 16
-			set minutes of dueDate to 0
-			set seconds of dueDate to 0
-			tell list "%s"
-				make new reminder with properties {name:"%s", due date:dueDate}
-			end tell
-		end tell
-	`, listName, listName, listName, task)
+        tell application "Reminders"
+            if not (exists list "%s") then
+                make new list with properties {name:"%s"}
+            end if%s
+            tell list "%s"
+                make new reminder with properties %s
+            end tell
+        end tell
+    `, listName, listName, dueDateSetup, listName, properties)
 
 	// Execute the AppleScript using osascript
 	cmd := exec.Command("osascript", "-e", appleScript)
