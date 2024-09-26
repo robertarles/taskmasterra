@@ -120,6 +120,35 @@ func expandPath(path string) (string, error) {
 	return path, nil
 }
 
+func clearRemindersList(listName string) error {
+	// AppleScript to delete all reminders in the specified list
+	appleScript := fmt.Sprintf(`
+        tell application "Reminders"
+            if exists list "%s" then
+                tell list "%s"
+                    delete reminders
+                end tell
+            end if
+        end tell
+    `, listName, listName)
+
+	// Execute the AppleScript using osascript
+	cmd := exec.Command("osascript", "-e", appleScript)
+
+	// Capture the standard output and error
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("osascript error: %v: %s", err, stderr.String())
+	}
+
+	return nil
+}
+
 func recordKeep(filePath string) {
 	// Expand ~ and $HOME in filePath
 	expandedFilePath, err := expandPath(filePath)
@@ -248,7 +277,6 @@ func replaceMarker(line string, oldMarker, newMarker rune) string {
 	}
 	return line // Return unmodified if the marker is not oldMarker
 }
-
 func updateCalendar(filePath string) {
 	// Expand ~ and $HOME in filePath
 	expandedFilePath, err := expandPath(filePath)
@@ -260,6 +288,14 @@ func updateCalendar(filePath string) {
 	// Extract the file name without the extension to use as the Reminders list name
 	baseFileName := filepath.Base(expandedFilePath)
 	listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
+
+	// First, clear the existing reminders in the list
+	err = clearRemindersList(listName)
+	if err != nil {
+		fmt.Printf("Failed to clear Reminders list '%s': %v\n", listName, err)
+		return
+	}
+	fmt.Printf("Cleared Reminders list '%s'.\n", listName)
 
 	// Open the file
 	file, err := os.Open(expandedFilePath)
@@ -278,12 +314,12 @@ func updateCalendar(filePath string) {
 		if isTaskForToday(line) {
 			// Include the checkbox, exclude the leading hyphen and space
 			taskDescription := strings.TrimSpace(line[2:])
-			tasksForToday = append(tasksForToday, taskDescription)
 
 			// Add the task to macOS Reminders with today's date at 4:00 PM
 			if err := addToReminders(taskDescription, listName); err != nil {
 				fmt.Printf("Failed to add task '%s' to Reminders: %v\n", taskDescription, err)
 			} else {
+				tasksForToday = append(tasksForToday, taskDescription)
 				fmt.Printf("Added task '%s' to Reminders list '%s'.\n", taskDescription, listName)
 			}
 		}
