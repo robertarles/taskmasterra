@@ -19,8 +19,8 @@ func isCompletedTask(line string) bool {
 }
 
 /**
-	* active can be either active(.) or active and touched(:)
-  **/
+ * active can be either active(.) or active and touched(:)
+ **/
 func isActiveTask(line string) bool {
 	// Check if the line starts with "- ["
 	if !strings.HasPrefix(line, "- [") {
@@ -83,7 +83,7 @@ func isTouchedTask(line string) bool {
 		return false
 	}
 
-	// Check if the next character is '.' or ':'
+	// Check if the next character is ':'
 	marker := line[closingBracketIndex+2]
 	if marker != ':' {
 		return false
@@ -171,13 +171,25 @@ func recordKeep(filePath string) {
 	currentTime := time.Now().UTC()
 	timestamp := currentTime.Format("[2006-01-02 15:04:05 UTC]") // Format as [YYYY-MM-DD HH:MM:SS UTC]
 
-	// First pass: Process touched tasks (non-destructive)
+	// Process each line
 	for _, line := range originalLines {
-		if isTouchedTask(line) {
+		if isCompletedTask(line) {
+			// Prepare entry for xarchive file with timestamp
+			entry := fmt.Sprintf("%s %s", timestamp, line)
+			xarchiveEntries = append(xarchiveEntries, entry)
+			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
+			// Do not add the line to updatedLines
+		} else if isTouchedTask(line) {
 			// Prepare entry for xjournal file with timestamp
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xjournalEntries = append(xjournalEntries, entry)
 			fmt.Printf("Recording touched task to journal: %s\n", entry)
+			// Modify the line, replacing ':' with '.'
+			modifiedLine := replaceMarker(line, ':', '.')
+			updatedLines = append(updatedLines, modifiedLine)
+		} else {
+			// Keep the line in the updatedLines
+			updatedLines = append(updatedLines, line)
 		}
 	}
 
@@ -192,21 +204,7 @@ func recordKeep(filePath string) {
 		}
 	}
 
-	// Second pass: Process completed tasks (destructive)
-	for _, line := range originalLines {
-		if isCompletedTask(line) {
-			// Prepare entry for xarchive file with timestamp
-			entry := fmt.Sprintf("%s %s", timestamp, line)
-			xarchiveEntries = append(xarchiveEntries, entry)
-			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
-			// Do not add the line to updatedLines
-		} else {
-			// Keep the line in the updatedLines
-			updatedLines = append(updatedLines, line)
-		}
-	}
-
-	// Write to the xarchive file first
+	// Write to the xarchive file
 	if len(xarchiveEntries) > 0 {
 		newXarchiveContent := []byte(strings.Join(xarchiveEntries, "\n") + "\n")
 		newXarchiveContent = append(newXarchiveContent, xarchiveContent...)
@@ -216,16 +214,39 @@ func recordKeep(filePath string) {
 			return
 		}
 
-		// Now that xarchive write was successful, update the original markdown file
-		err = ioutil.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
-		if err != nil {
-			fmt.Println("Error writing to markdown file:", err)
-			return
-		}
 		fmt.Println("Removed archived tasks from the markdown file.")
 	}
 
+	// Write the updated lines back to the original markdown file
+	err = ioutil.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
+	if err != nil {
+		fmt.Println("Error writing to markdown file:", err)
+		return
+	}
+
+	fmt.Println("Updated markdown file with modified tasks.")
 	fmt.Println("Tasks have been recorded successfully.")
+}
+
+func replaceMarker(line string, oldMarker, newMarker rune) string {
+	// Find the position of the closing bracket ']'
+	closingBracketIndex := strings.Index(line, "]")
+	if closingBracketIndex == -1 {
+		return line // Return the line unmodified if no closing bracket
+	}
+
+	// Ensure there's enough length for the expected pattern
+	if len(line) <= closingBracketIndex+3 {
+		return line
+	}
+
+	// Check that the marker is oldMarker
+	if rune(line[closingBracketIndex+2]) == oldMarker {
+		// Build a new line with the marker replaced
+		newLine := line[:closingBracketIndex+2] + string(newMarker) + line[closingBracketIndex+3:]
+		return newLine
+	}
+	return line // Return unmodified if the marker is not oldMarker
 }
 
 func updateCalendar(filePath string) {
