@@ -5,12 +5,12 @@ Manage my Reminders with (mis-named) `updatecal` which creates/updates active([.
 
 This replaces the existing notesutil written in Rust.
 
-`recordkeep` 
+`taskmasterra recordkeep -i <markdownfilepath>` 
 
     completed(- [x]) will be removed after being added to the archive.
     Touched(:) will be added to the journal.
     
-`updatecal`
+`taskmasterra updatecal -i <markdownfilepath>` 
     
     Active(.) and Touched(:) will be added to reminders.
 
