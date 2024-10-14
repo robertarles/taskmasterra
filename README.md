@@ -1,7 +1,10 @@
 # TaskMasterRa
 
 Manage my tasks with `recordkeep` for journaling and archiving activities.
-Manage my Reminders with (mis-named) `updatecal` which creates/updates active([.:]) todo items in Reminders.app
+
+Manage my Reminders with `updatecal` which creates/updates active([.:]) todo items in MacOS Reminders.app
+    `updatecal is` "slightly mis-named" because reminders is not calendar.app, but dated reminders DO appear in Calendar app, but the goal is for items that can be marked completed, and show in my calendar.
+
 
 This replaces the existing notesutil written in Rust.
 
@@ -16,8 +19,10 @@ This replaces the existing notesutil written in Rust.
 
 markdown file, task examples:
 
+```markdown
 - [w] . A1 task is active (.) and has some work done ([w]), A priority and fibonacci est effort 1, active or touched so added to reminders due today
 - [x] : B1 task that is touched (:) today, and is completed ([x]) active or touched so added to reminders due today
 - [b] B2 blocked task that is not active or touched today. will not be added to reminders\
+```
 
 Taskra (seperate nvim extension) will highlight the task priority with fibonacci entry
