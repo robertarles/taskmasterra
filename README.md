@@ -3,6 +3,7 @@
 Manage my tasks with `recordkeep` for journaling and archiving activities.
 
 Manage my Reminders with `updatecal` which creates/updates active([.:]) todo items in MacOS Reminders.app
+    
     `updatecal is` "slightly mis-named" because reminders is not calendar.app, but dated reminders DO appear in Calendar app, but the goal is for items that can be marked completed, and show in my calendar.
 
 
