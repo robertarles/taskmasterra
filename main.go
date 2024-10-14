@@ -202,23 +202,29 @@ func recordKeep(filePath string) {
 
 	// Process each line
 	for _, line := range originalLines {
+		modifiedLine := ""
+		// if "touched", journal item
+		if isTouchedTask(line) {
+			// Prepare entry for xjournal file with timestamp
+			entry := fmt.Sprintf("%s %s", timestamp, line)
+			xjournalEntries = append(xjournalEntries, entry)
+			fmt.Printf("Recording touched task to journal: %s\n", entry)
+			// Modify the line, replacing ':' with '.'
+			modifiedLine = replaceMarker(line, ':', '.')
+		}
+		// if completed, archive it and remove from current, but do not add to updated file
 		if isCompletedTask(line) {
 			// Prepare entry for xarchive file with timestamp
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xarchiveEntries = append(xarchiveEntries, entry)
 			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
 			// Do not add the line to updatedLines
-		} else if isTouchedTask(line) {
-			// Prepare entry for xjournal file with timestamp
-			entry := fmt.Sprintf("%s %s", timestamp, line)
-			xjournalEntries = append(xjournalEntries, entry)
-			fmt.Printf("Recording touched task to journal: %s\n", entry)
-			// Modify the line, replacing ':' with '.'
-			modifiedLine := replaceMarker(line, ':', '.')
-			updatedLines = append(updatedLines, modifiedLine)
 		} else {
-			// Keep the line in the updatedLines
-			updatedLines = append(updatedLines, line)
+			if len(modifiedLine) > 0 {
+				updatedLines = append(updatedLines, modifiedLine)
+			} else {
+				updatedLines = append(updatedLines, line)
+			}
 		}
 	}
 
