@@ -4,7 +4,7 @@ Manage my tasks with `recordkeep` for journaling and archiving activities.
 
 Manage my Reminders with `updatecal` which creates/updates active([.:]) todo items in MacOS Reminders.app
     
-    `updatecal is` "slightly mis-named" because reminders is not calendar.app, but dated reminders DO appear in Calendar app, but the goal is for items that can be marked completed, and show in my calendar.
+`updatecal is` "slightly mis-named" because Reminders.app is obviously not Calendar.app, but dated reminders DO appear in Calendar.app, and the goal is to have tasks that can be marked completed, -AND- show in my calendar.
 
 
 This replaces the existing notesutil written in Rust.
