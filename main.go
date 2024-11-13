@@ -290,18 +290,15 @@ func isTask(line string) bool {
 }
 
 func updateCalendar(filePath string) {
-	// Expand ~ and $HOME in filePath
 	expandedFilePath, err := expandPath(filePath)
 	if err != nil {
 		fmt.Println("Error expanding file path:", err)
 		return
 	}
 
-	// Extract the file name without the extension to use as the Reminders list name
 	baseFileName := filepath.Base(expandedFilePath)
 	listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
 
-	// First, clear the existing reminders in the list
 	err = clearRemindersList(listName)
 	if err != nil {
 		fmt.Printf("Failed to clear Reminders list '%s': %v\n", listName, err)
@@ -309,7 +306,6 @@ func updateCalendar(filePath string) {
 	}
 	fmt.Printf("Cleared Reminders list '%s'.\n", listName)
 
-	// Open the file
 	file, err := os.Open(expandedFilePath)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -317,7 +313,6 @@ func updateCalendar(filePath string) {
 	}
 	defer file.Close()
 
-	// Read the file line by line
 	scanner := bufio.NewScanner(file)
 	var tasksForToday []string
 	var tasksWithoutDueDate []string
@@ -325,15 +320,25 @@ func updateCalendar(filePath string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if isTask(line) && !isCompletedTask(line) {
-			// Find the position of the closing bracket ']'
 			closingBracketIndex := strings.Index(line, "]")
 			if closingBracketIndex != -1 {
-				// Extract the task description after the ']'
 				taskDescription := strings.TrimSpace(line[closingBracketIndex+1:])
 				withDueDate := isTaskForToday(line)
 
-				// Add the task to macOS Reminders
-				if err := addToReminders(taskDescription, listName, withDueDate); err != nil {
+				// Check for child notes directly below the task
+				var note string
+				if scanner.Scan() {
+					nextLine := scanner.Text()
+					if strings.HasPrefix(nextLine, "  -") { // Indented bullet point for a note
+						note = strings.TrimSpace(nextLine[2:])
+					} else {
+						// Move scanner back by one line if not a note
+						scanner = bufio.NewScanner(file)
+					}
+				}
+
+				// Add the task to macOS Reminders with the note if found
+				if err := addToReminders(taskDescription, listName, withDueDate, note); err != nil {
 					fmt.Printf("Failed to add task '%s' to Reminders: %v\n", taskDescription, err)
 				} else {
 					if withDueDate {
@@ -353,7 +358,6 @@ func updateCalendar(filePath string) {
 		return
 	}
 
-	// Print tasks that are marked for today
 	if len(tasksForToday) > 0 {
 		fmt.Println("\nTasks with due date:")
 		for _, task := range tasksForToday {
@@ -363,7 +367,6 @@ func updateCalendar(filePath string) {
 		fmt.Println("No tasks with due date.")
 	}
 
-	// Optionally, print tasks without due date
 	if len(tasksWithoutDueDate) > 0 {
 		fmt.Println("\nTasks without due date:")
 		for _, task := range tasksWithoutDueDate {
@@ -372,15 +375,16 @@ func updateCalendar(filePath string) {
 	}
 }
 
-func addToReminders(task, listName string, withDueDate bool) error {
-	// Build the properties string
+func addToReminders(task, listName string, withDueDate bool, note string) error {
 	properties := fmt.Sprintf(`{name:"%s"`, task)
+	if note != "" {
+		properties += fmt.Sprintf(`, body:"%s"`, note)
+	}
 	if withDueDate {
 		properties += `, due date:dueDate`
 	}
 	properties += `}`
 
-	// Build the due date setup code
 	dueDateSetup := ""
 	if withDueDate {
 		dueDateSetup = `
@@ -390,7 +394,6 @@ func addToReminders(task, listName string, withDueDate bool) error {
             set seconds of dueDate to 0`
 	}
 
-	// Create the AppleScript command to add the reminder
 	appleScript := fmt.Sprintf(`
         tell application "Reminders"
             if not (exists list "%s") then
@@ -402,10 +405,8 @@ func addToReminders(task, listName string, withDueDate bool) error {
         end tell
     `, listName, listName, dueDateSetup, listName, properties)
 
-	// Execute the AppleScript using osascript
 	cmd := exec.Command("osascript", "-e", appleScript)
 
-	// Capture the standard output and error
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
