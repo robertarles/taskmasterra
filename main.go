@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -316,29 +317,35 @@ func updateCalendar(filePath string) {
 	scanner := bufio.NewScanner(file)
 	var tasksForToday []string
 	var tasksWithoutDueDate []string
-
+	note := ""
+	// Regex for matching valid notes (0+ spaces, dash, space)
+	notePattern := regexp.MustCompile(`^[\t ]*-\s`)
 	for scanner.Scan() {
 		line := scanner.Text()
+
 		if isTask(line) && !isCompletedTask(line) {
 			closingBracketIndex := strings.Index(line, "]")
 			if closingBracketIndex != -1 {
 				taskDescription := strings.TrimSpace(line[closingBracketIndex+1:])
 				withDueDate := isTaskForToday(line)
 
-				// Check for child notes directly below the task
-				var note string
-				if scanner.Scan() {
+				// Reset note for the current task
+				note = ""
+
+				// Collect notes from subsequent non-task lines
+				for scanner.Scan() {
 					nextLine := scanner.Text()
-					if strings.HasPrefix(nextLine, "  -") { // Indented bullet point for a note
-						note = strings.TrimSpace(nextLine[2:])
+					if !isTask(nextLine) && notePattern.MatchString(nextLine) {
+						note += nextLine + "\n"
 					} else {
-						// Move scanner back by one line if not a note
-						scanner = bufio.NewScanner(file)
+						// Push back the scanner to reprocess the next task line
+						scanner = reinitializeScanner(scanner, nextLine)
+						break
 					}
 				}
 
-				// Add the task to macOS Reminders with the note if found
-				if err := addToReminders(taskDescription, listName, withDueDate, note); err != nil {
+				// Add the task to macOS Reminders with the accumulated note
+				if err := addToReminders(taskDescription, listName, withDueDate, strings.TrimSpace(note)); err != nil {
 					fmt.Printf("Failed to add task '%s' to Reminders: %v\n", taskDescription, err)
 				} else {
 					if withDueDate {
@@ -373,6 +380,16 @@ func updateCalendar(filePath string) {
 			fmt.Println(task)
 		}
 	}
+}
+
+// Helper to reinitialize the scanner for reprocessing
+func reinitializeScanner(scanner *bufio.Scanner, pushedLine string) *bufio.Scanner {
+	lines := []string{pushedLine}
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	scanner = bufio.NewScanner(strings.NewReader(strings.Join(lines, "\n")))
+	return scanner
 }
 
 func addToReminders(task, listName string, withDueDate bool, note string) error {
