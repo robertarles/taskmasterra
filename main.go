@@ -202,13 +202,24 @@ func recordKeep(filePath string) {
 	timestamp := currentTime.Format("[2006-01-02 15:04:05 UTC]") // Format as [YYYY-MM-DD HH:MM:SS UTC]
 
 	// Process each line
-	for _, line := range originalLines {
+	taskDetailPattern := `^\s+-`
+	re := regexp.MustCompile(taskDetailPattern)
+	for i, line := range originalLines {
 		modifiedLine := ""
 		// if "touched", journal item
 		if isTouchedTask(line) {
 			// Prepare entry for xjournal file with timestamp
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xjournalEntries = append(xjournalEntries, entry)
+			// now append any lines following this one that are indented and start with a '-'
+			for _, trailingLine := range originalLines[i+1:] {
+				if re.MatchString(trailingLine) {
+					xjournalEntries = append(xjournalEntries, trailingLine)
+					updatedLines = append(updatedLines, trailingLine)
+				} else {
+					break
+				}
+			}
 			fmt.Printf("Recording touched task to journal: %s\n", entry)
 			// Modify the line, replacing ':' with '.'
 			modifiedLine = replaceMarker(line, ':', '.')
@@ -218,6 +229,15 @@ func recordKeep(filePath string) {
 			// Prepare entry for xarchive file with timestamp
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xarchiveEntries = append(xarchiveEntries, entry)
+			// now append any lines following this one that are indented and start with a '-'
+			for _, trailingLine := range originalLines[i+1:] {
+				if re.MatchString(trailingLine) {
+					xarchiveEntries = append(xarchiveEntries, trailingLine)
+					updatedLines = append(updatedLines, trailingLine)
+				} else {
+					break
+				}
+			}
 			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
 			// Do not add the line to updatedLines
 		} else {
