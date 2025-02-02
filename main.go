@@ -50,7 +50,7 @@ func isActiveTask(line string) bool {
 		return false
 	}
 
-	// Check for space after the marker
+	// Check for space after the 'active' character
 	if line[closingBracketIndex+3] != ' ' {
 		return false
 	}
@@ -233,7 +233,7 @@ func recordKeep(filePath string) {
 			for _, trailingLine := range originalLines[i+1:] {
 				if re.MatchString(trailingLine) {
 					xarchiveEntries = append(xarchiveEntries, trailingLine)
-					updatedLines = append(updatedLines, trailingLine)
+					// IS THIS THE CAUSE OF DUPLICATED SUBTASKS // updatedLines = append(updatedLines, trailingLine)
 				} else {
 					break
 				}
