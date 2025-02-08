@@ -150,6 +150,11 @@ func clearRemindersList(listName string) error {
 	return nil
 }
 
+/**
+ * RecordKeep is a function that takes in a file path, reads the contents of the file, and then writes it to an xjournal or xarchive file.
+ * It also clears all reminders in a specified list before writing to them.
+ * If there are any errors, it prints them to stdout and returns without further action.
+ */
 func recordKeep(filePath string) {
 	// Expand ~ and $HOME in filePath
 	expandedFilePath, err := expandPath(filePath)
@@ -201,55 +206,72 @@ func recordKeep(filePath string) {
 	currentTime := time.Now().UTC()
 	timestamp := currentTime.Format("[2006-01-02 15:04:05 UTC]") // Format as [YYYY-MM-DD HH:MM:SS UTC]
 
-	// Process each line
+	// Compile the pattern for trailing lines (subtasks)
 	taskDetailPattern := `^\s+-`
 	re := regexp.MustCompile(taskDetailPattern)
-	for i, line := range originalLines {
-		modifiedLine := ""
-		// if "touched", journal item
+
+	// Use an index-based loop so we can jump over trailing lines that are processed.
+	for i := 0; i < len(originalLines); {
+		line := originalLines[i]
+
+		// Check if the current line is a touched task.
 		if isTouchedTask(line) {
-			// Prepare entry for xjournal file with timestamp
+			// Record the touched task to journal with timestamp.
 			entry := fmt.Sprintf("%s %s", timestamp, line)
+			fmt.Printf("Recording touched task to journal: %s\n", entry)
 			xjournalEntries = append(xjournalEntries, entry)
-			// now append any lines following this one that are indented and start with a '-'
-			for _, trailingLine := range originalLines[i+1:] {
-				if re.MatchString(trailingLine) {
-					xjournalEntries = append(xjournalEntries, trailingLine)
-					updatedLines = append(updatedLines, trailingLine)
+	
+			// Replace ':' with '.' in the task marker and add the modified task line.
+			modifiedLine := replaceMarker(line, ':', '.')
+			updatedLines = append(updatedLines, modifiedLine)		
+
+			// Process trailing lines (child lines) that start with "-" (indented details).
+			j := i + 1
+			for ; j < len(originalLines); j++ {
+				if re.MatchString(originalLines[j]) {
+					// Append trailing lines to both the journal and updated lines.
+					xjournalEntries = append(xjournalEntries, originalLines[j])
+					if ! isCompletedTask(line) {
+						updatedLines = append(updatedLines, originalLines[j])
+					}
 				} else {
 					break
 				}
 			}
-			fmt.Printf("Recording touched task to journal: %s\n", entry)
-			// Modify the line, replacing ':' with '.'
-			modifiedLine = replaceMarker(line, ':', '.')
+
+			// Jump ahead past the trailing lines.
+			i = j
+			continue
 		}
-		// if completed, archive it and remove from current, but do not add to updated file
+
+		// Check if the current line is a completed task.
 		if isCompletedTask(line) {
-			// Prepare entry for xarchive file with timestamp
+			// Record the completed task to archive with timestamp.
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xarchiveEntries = append(xarchiveEntries, entry)
-			// now append any lines following this one that are indented and start with a '-'
-			for _, trailingLine := range originalLines[i+1:] {
-				if re.MatchString(trailingLine) {
-					xarchiveEntries = append(xarchiveEntries, trailingLine)
-					// IS THIS THE CAUSE OF DUPLICATED SUBTASKS // updatedLines = append(updatedLines, trailingLine)
+			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
+
+			// Process trailing lines that belong to the completed task.
+			j := i + 1
+			for ; j < len(originalLines); j++ {
+				if re.MatchString(originalLines[j]) {
+					// Append the trailing lines only to the archive.
+					xarchiveEntries = append(xarchiveEntries, originalLines[j])
 				} else {
 					break
 				}
 			}
-			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
-			// Do not add the line to updatedLines
-		} else {
-			if len(modifiedLine) > 0 {
-				updatedLines = append(updatedLines, modifiedLine)
-			} else {
-				updatedLines = append(updatedLines, line)
-			}
+			// Do not add the completed task or its trailing lines to updatedLines.
+			i = j
+			continue
 		}
+
+		// If the line is neither a touched nor a completed task, simply carry it over.
+		updatedLines = append(updatedLines, line)
+		i++
 	}
 
-	// Write to the xjournal file
+	// Write to the xjournal file (prepend new entries).
 	if len(xjournalEntries) > 0 {
 		newXjournalContent := []byte(strings.Join(xjournalEntries, "\n") + "\n")
 		newXjournalContent = append(newXjournalContent, xjournalContent...)
@@ -260,7 +282,7 @@ func recordKeep(filePath string) {
 		}
 	}
 
-	// Write to the xarchive file
+	// Write to the xarchive file (prepend new entries).
 	if len(xarchiveEntries) > 0 {
 		newXarchiveContent := []byte(strings.Join(xarchiveEntries, "\n") + "\n")
 		newXarchiveContent = append(newXarchiveContent, xarchiveContent...)
@@ -273,7 +295,7 @@ func recordKeep(filePath string) {
 		fmt.Println("Removed archived tasks from the markdown file.")
 	}
 
-	// Write the updated lines back to the original markdown file
+	// Write the updated lines back to the original markdown file.
 	err = ioutil.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
 	if err != nil {
 		fmt.Println("Error writing to markdown file:", err)
