@@ -213,7 +213,6 @@ func recordKeep(filePath string) {
 	// Use an index-based loop so we can jump over trailing lines that are processed.
 	for nextLine := 0; nextLine < len(originalLines); {
 		line := originalLines[nextLine]
-		fmt.Println("[DEBUG] checking line: \n", line)
 		// start with simple increment,	possible additional incrementing to skip subtask lines
 		nextCalculatedLine := nextLine +1
 		taskHandled := false
@@ -236,10 +235,7 @@ func recordKeep(filePath string) {
 					// Append trailing lines to both the journal and updated lines.
 					xjournalEntries = append(xjournalEntries, originalLines[nextCalculatedLine])
 					if ! isCompletedTask(line) {
-						fmt.Println("keeping sub-task for non-completed task")
 						updatedLines = append(updatedLines, originalLines[nextCalculatedLine])
-					}else{
-						fmt.Println("[DEBUG] dropping completed sub-task")
 					}
 				} else {
 					break
@@ -277,7 +273,6 @@ func recordKeep(filePath string) {
 			// If the line is neither a touched nor a completed task, simply carry it over.
 			updatedLines = append(updatedLines, line)
 		}
-		fmt.Println("\t moving to line ", nextCalculatedLine);
 		nextLine = nextCalculatedLine
 	}
 
@@ -301,8 +296,6 @@ func recordKeep(filePath string) {
 			fmt.Println("Error writing to xarchive file:", err)
 			return
 		}
-
-		fmt.Println("Removed archived tasks from the markdown file.")
 	}
 
 	// Write the updated lines back to the original markdown file.
