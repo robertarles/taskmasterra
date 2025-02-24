@@ -208,67 +208,77 @@ func recordKeep(filePath string) {
 
 	// Compile the pattern for trailing lines (subtasks)
 	taskDetailPattern := `^\s+-`
-	re := regexp.MustCompile(taskDetailPattern)
+	isTaskDetailLine := regexp.MustCompile(taskDetailPattern)
 
 	// Use an index-based loop so we can jump over trailing lines that are processed.
-	for i := 0; i < len(originalLines); {
-		line := originalLines[i]
-
+	for nextLine := 0; nextLine < len(originalLines); {
+		line := originalLines[nextLine]
+		fmt.Println("[DEBUG] checking line: \n", line)
+		// start with simple increment,	possible additional incrementing to skip subtask lines
+		nextCalculatedLine := nextLine +1
+		taskHandled := false
 		// Check if the current line is a touched task.
 		if isTouchedTask(line) {
+			taskHandled = true
 			// Record the touched task to journal with timestamp.
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			fmt.Printf("Recording touched task to journal: %s\n", entry)
 			xjournalEntries = append(xjournalEntries, entry)
 	
-			// Replace ':' with '.' in the task marker and add the modified task line.
-			modifiedLine := replaceMarker(line, ':', '.')
-			updatedLines = append(updatedLines, modifiedLine)		
-
+			// Replace ':' with '.' in the task marker and put it back in the todo file
+			if ! isCompletedTask(line){
+				modifiedLine := replaceMarker(line, ':', '.')
+				updatedLines = append(updatedLines, modifiedLine)		
+			}
 			// Process trailing lines (child lines) that start with "-" (indented details).
-			j := i + 1
-			for ; j < len(originalLines); j++ {
-				if re.MatchString(originalLines[j]) {
+			for ; nextCalculatedLine < len(originalLines); nextCalculatedLine++ {
+				if isTaskDetailLine.MatchString(originalLines[nextCalculatedLine]) {
 					// Append trailing lines to both the journal and updated lines.
-					xjournalEntries = append(xjournalEntries, originalLines[j])
+					xjournalEntries = append(xjournalEntries, originalLines[nextCalculatedLine])
 					if ! isCompletedTask(line) {
-						updatedLines = append(updatedLines, originalLines[j])
+						fmt.Println("keeping sub-task for non-completed task")
+						updatedLines = append(updatedLines, originalLines[nextCalculatedLine])
+					}else{
+						fmt.Println("[DEBUG] dropping completed sub-task")
 					}
 				} else {
 					break
 				}
 			}
-
-			// Jump ahead past the trailing lines.
-			i = j
-			continue
 		}
 
 		// Check if the current line is a completed task.
 		if isCompletedTask(line) {
+			taskHandled = true
 			// Record the completed task to archive with timestamp.
 			entry := fmt.Sprintf("%s %s", timestamp, line)
 			xarchiveEntries = append(xarchiveEntries, entry)
-			fmt.Printf("Recording completed task to archive and removing from markdown: %s\n", entry)
+			fmt.Printf("Recording completed task to archive and removing from todo list: %s\n", entry)
 
 			// Process trailing lines that belong to the completed task.
-			j := i + 1
-			for ; j < len(originalLines); j++ {
-				if re.MatchString(originalLines[j]) {
+			nextCalculatedCompletedLine := nextLine +1
+			for ; nextCalculatedCompletedLine < len(originalLines); nextCalculatedCompletedLine++ {
+				if isTaskDetailLine.MatchString(originalLines[nextCalculatedCompletedLine]) {
 					// Append the trailing lines only to the archive.
-					xarchiveEntries = append(xarchiveEntries, originalLines[j])
+					xarchiveEntries = append(xarchiveEntries, originalLines[nextCalculatedCompletedLine])
 				} else {
 					break
 				}
+		
 			}
-			// Do not add the completed task or its trailing lines to updatedLines.
-			i = j
-			continue
+			// if we've skipped over more "completed" lines than "touched" lines, then we need to move the nextCalcuatedLine pointer up.
+			if nextCalculatedCompletedLine > nextCalculatedLine {
+				nextCalculatedLine = nextCalculatedCompletedLine;
+			}
 		}
+		
 
-		// If the line is neither a touched nor a completed task, simply carry it over.
-		updatedLines = append(updatedLines, line)
-		i++
+		if ! taskHandled {
+			// If the line is neither a touched nor a completed task, simply carry it over.
+			updatedLines = append(updatedLines, line)
+		}
+		fmt.Println("\t moving to line ", nextCalculatedLine);
+		nextLine = nextCalculatedLine
 	}
 
 	// Write to the xjournal file (prepend new entries).
