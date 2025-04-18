@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -173,7 +172,7 @@ func recordKeep(filePath string) {
 	// Read existing content of xjournal and xarchive files
 	var xjournalContent []byte
 	if _, err := os.Stat(xjournalPath); err == nil {
-		xjournalContent, err = ioutil.ReadFile(xjournalPath)
+		xjournalContent, err = os.ReadFile(xjournalPath)
 		if err != nil {
 			fmt.Println("Error reading xjournal file:", err)
 			return
@@ -182,7 +181,7 @@ func recordKeep(filePath string) {
 
 	var xarchiveContent []byte
 	if _, err := os.Stat(xarchivePath); err == nil {
-		xarchiveContent, err = ioutil.ReadFile(xarchivePath)
+		xarchiveContent, err = os.ReadFile(xarchivePath)
 		if err != nil {
 			fmt.Println("Error reading xarchive file:", err)
 			return
@@ -190,7 +189,7 @@ func recordKeep(filePath string) {
 	}
 
 	// Read the original markdown file content
-	originalContentBytes, err := ioutil.ReadFile(expandedFilePath)
+	originalContentBytes, err := os.ReadFile(expandedFilePath)
 	if err != nil {
 		fmt.Println("Error reading markdown file:", err)
 		return
@@ -280,7 +279,7 @@ func recordKeep(filePath string) {
 	if len(xjournalEntries) > 0 {
 		newXjournalContent := []byte(strings.Join(xjournalEntries, "\n") + "\n")
 		newXjournalContent = append(newXjournalContent, xjournalContent...)
-		err = ioutil.WriteFile(xjournalPath, newXjournalContent, 0644)
+		err = os.WriteFile(xjournalPath, newXjournalContent, 0644)
 		if err != nil {
 			fmt.Println("Error writing to xjournal file:", err)
 			return
@@ -291,7 +290,7 @@ func recordKeep(filePath string) {
 	if len(xarchiveEntries) > 0 {
 		newXarchiveContent := []byte(strings.Join(xarchiveEntries, "\n") + "\n")
 		newXarchiveContent = append(newXarchiveContent, xarchiveContent...)
-		err = ioutil.WriteFile(xarchivePath, newXarchiveContent, 0644)
+		err = os.WriteFile(xarchivePath, newXarchiveContent, 0644)
 		if err != nil {
 			fmt.Println("Error writing to xarchive file:", err)
 			return
@@ -299,7 +298,7 @@ func recordKeep(filePath string) {
 	}
 
 	// Write the updated lines back to the original markdown file.
-	err = ioutil.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
+	err = os.WriteFile(expandedFilePath, []byte(strings.Join(updatedLines, "\n")), 0644)
 	if err != nil {
 		fmt.Println("Error writing to markdown file:", err)
 		return
