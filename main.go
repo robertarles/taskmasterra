@@ -444,13 +444,17 @@ func addToReminders(task, listName string, withDueDate bool, note string) error 
 	return nil
 }
 
+func printHelp() {
+	fmt.Println("Usage: taskmasterra <command> [options]")
+	fmt.Println("Commands:")
+	fmt.Println("  updatecal     Update the calendar with today's tasks")
+	fmt.Println("  recordkeep    Record tasks to journal and archive files")
+	fmt.Println("  version       Show the version of taskmasterra")
+	fmt.Println("  help          Show this help message")
+}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Error: Command is required.")
-		fmt.Println("Usage: taskmasterra <command> [options]")
-		fmt.Println("Commands:")
-		fmt.Println("  updatecal     Update the calendar with today's tasks")
-		fmt.Println("  recordkeep    Record tasks to journal and archive files")
 		return
 	}
 
@@ -483,11 +487,12 @@ func main() {
 
 		recordKeep(*inputFilePath)
 
+	case "version":
+		fmt.Println("taskmasterra version 2.0.0")
+		return
+
 	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Usage: taskmasterra <command> [options]")
-		fmt.Println("Commands:")
-		fmt.Println("  updatecal     Update the calendar with today's tasks")
-		fmt.Println("  recordkeep    Record tasks to journal and archive files")
+		printHelp()
+		return
 	}
 }

@@ -29,3 +29,36 @@ Markdown file, task examples:
 ```
 
 Taskra (seperate nvim extension) will highlight the task priority with fibonacci entry
+
+## Installation
+
+### Using `go`
+
+#### For the latest version
+
+```bash
+go install github.com/robertarles/taskmasterra@latest
+```
+
+# Or for a specific version (replace v0.0.0 with your version)
+
+# go install github.com/robertarles/taskmasterra@v0.0.0
+
+Transfer the binary to the target Mac (using any method like AirDrop, scp, or a USB drive):
+
+### Example install using scp (from your current machine)
+
+Download the appropriate binary and rename it to `taskmasterra`
+
+#### Make it executable
+
+```bash
+chmod +x ~/taskmasterra
+```
+
+#### Move it to a location in your path (e.g. /usr/local/bin (requires sudo))
+
+```bash
+sudo mv ~/taskmasterra /usr/local/bin/
+taskmasterra --help
+```
