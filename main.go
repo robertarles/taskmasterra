@@ -14,87 +14,49 @@ import (
 )
 
 func isCompletedTask(line string) bool {
+
+	// cheap short circuit for non task lines
+	if !isTask(line) {
+		return false
+	}
+
 	// Check if the line starts with "- [√]", "- [x]", or "- [X]"
 	return strings.HasPrefix(line, "- [√]") || strings.HasPrefix(line, "- [x]") || strings.HasPrefix(line, "- [X]")
 }
 
 /**
- * active can be either active(.) or active and touched(:)
+ * "active" can be any task needing attention today, defined by regex /- \\[[tABXW]\\] /
  **/
 func isActiveTask(line string) bool {
-	// Check if the line starts with "- ["
-	if !strings.HasPrefix(line, "- [") {
+	
+	// cheap short circuit for non task lines
+	if !isTask(line) {
 		return false
 	}
 
-	// Find the position of the closing bracket ']'
-	closingBracketIndex := strings.Index(line, "]")
-	if closingBracketIndex == -1 {
-		return false
+	// check if the line matches the regex
+	if regexp.MustCompile(`^- \[[tABW]\]`).MatchString(line) {
+		return true
 	}
 
-	// Ensure there's enough length for the expected pattern
-	if len(line) <= closingBracketIndex+3 {
-		return false
-	}
-
-	// Check for space after closing bracket
-	if line[closingBracketIndex+1] != ' ' {
-		return false
-	}
-
-	// Check if the next character is '.' or ':'
-	marker := line[closingBracketIndex+2]
-	if marker != '.' && marker != ':' {
-		return false
-	}
-
-	// Check for space after the 'active' character
-	if line[closingBracketIndex+3] != ' ' {
-		return false
-	}
-
-	return true
+	return false
 }
 
 /**
- * active AND touched is a :
- * this does not cover active (.) not yet touched (:)
+ * active AND touched is defined by regex /- \\[[T]\\] /
  **/
 func isTouchedTask(line string) bool {
-	// Check if the line starts with "- ["
-	if !strings.HasPrefix(line, "- [") {
+	// short circuit for non task lines
+	if !isTask(line) {
 		return false
 	}
 
-	// Find the position of the closing bracket ']'
-	closingBracketIndex := strings.Index(line, "]")
-	if closingBracketIndex == -1 {
-		return false
+	// check if the line matches the regex
+	if regexp.MustCompile(`^- \[[TXx]\]`).MatchString(line) {
+		return true
 	}
 
-	// Ensure there's enough length for the expected pattern
-	if len(line) <= closingBracketIndex+3 {
-		return false
-	}
-
-	// Check for space after closing bracket
-	if line[closingBracketIndex+1] != ' ' {
-		return false
-	}
-
-	// Check if the next character is ':'
-	marker := line[closingBracketIndex+2]
-	if marker != ':' {
-		return false
-	}
-
-	// Check for space after the marker
-	if line[closingBracketIndex+3] != ' ' {
-		return false
-	}
-
-	return true
+	return false
 }
 
 func isTaskForToday(line string) bool {
@@ -223,9 +185,10 @@ func recordKeep(filePath string) {
 			fmt.Printf("Recording touched task to journal: %s\n", entry)
 			xjournalEntries = append(xjournalEntries, entry)
 	
-			// Replace ':' with '.' in the task marker and put it back in the todo file
+			// for active tasks, marked the task as touched in the todo file
+			modifiedLine := replaceActiveWithTouchedStatus(line)
+			// Replace active status with a touched status in the task marker and put it back in the todo file
 			if ! isCompletedTask(line){
-				modifiedLine := replaceMarker(line, ':', '.')
 				updatedLines = append(updatedLines, modifiedLine)		
 			}
 			// Process trailing lines (child lines) that start with "-" (indented details).
@@ -308,26 +271,26 @@ func recordKeep(filePath string) {
 	fmt.Println("Tasks have been recorded successfully.")
 }
 
-func replaceMarker(line string, oldMarker, newMarker rune) string {
-	// Find the position of the closing bracket ']'
-	closingBracketIndex := strings.Index(line, "]")
-	if closingBracketIndex == -1 {
-		return line // Return the line unmodified if no closing bracket
-	}
-
-	// Ensure there's enough length for the expected pattern
-	if len(line) <= closingBracketIndex+3 {
-		return line
-	}
-
-	// Check that the marker is oldMarker
-	if rune(line[closingBracketIndex+2]) == oldMarker {
-		// Build a new line with the marker replaced
-		newLine := line[:closingBracketIndex+2] + string(newMarker) + line[closingBracketIndex+3:]
-		return newLine
+/**
+ * replace the task status x with y: "- [<oldMarker>]" with "- [<newMarker>]"
+ **/
+func replaceStatus(line string, oldMarker, newMarker rune) string {
+	if strings.Contains(line, "- ["+string(oldMarker)+"]") {
+		return strings.Replace(line, "- ["+string(oldMarker)+"]", "- ["+string(newMarker)+"]", 1)
 	}
 	return line // Return unmodified if the marker is not oldMarker
 }
+/** 
+ * replace ACTIVE task status with a TOUCHED version of the status
+ */
+func replaceActiveWithTouchedStatus(line string) string {
+	line = replaceStatus(line, 'X', 'x');
+	line = replaceStatus(line, 'W', 'w');
+	line = replaceStatus(line, 'T', 'w');
+	line = replaceStatus(line, 'B', 'b')	
+	return line
+}
+
 
 func isTask(line string) bool {
 	// Check if the line starts with "- ["
