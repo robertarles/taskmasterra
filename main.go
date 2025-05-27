@@ -20,8 +20,8 @@ func isCompletedTask(line string) bool {
 		return false
 	}
 
-	// Check if the line starts with "- [√]", "- [x]", or "- [X]"
-	return strings.HasPrefix(line, "- [√]") || strings.HasPrefix(line, "- [x]") || strings.HasPrefix(line, "- [X]")
+	// Check if the line starts with  zero or more whitespace chars and "- [x]", or "- [X]"
+	return regexp.MustCompile(`^\s*- \[[Xx]\]`).MatchString(line)
 }
 
 /**
@@ -35,7 +35,7 @@ func isActiveTask(line string) bool {
 	}
 
 	// check if the line matches the regex
-	if regexp.MustCompile(`^- \[[tABW]\]`).MatchString(line) {
+	if regexp.MustCompile(`^\s*- \[[TABW]\]`).MatchString(line) {
 		return true
 	}
 
@@ -52,7 +52,7 @@ func isTouchedTask(line string) bool {
 	}
 
 	// check if the line matches the regex
-	if regexp.MustCompile(`^- \[[TXx]\]`).MatchString(line) {
+	if regexp.MustCompile(`^\s*- \[[tXx]\]`).MatchString(line) {
 		return true
 	}
 
@@ -167,7 +167,7 @@ func recordKeep(filePath string) {
 	currentTime := time.Now().UTC()
 	timestamp := currentTime.Format("[2006-01-02 15:04:05 UTC]") // Format as [YYYY-MM-DD HH:MM:SS UTC]
 
-	// Compile the pattern for trailing lines (subtasks)
+	// Compile the pattern for indented subtasks/items
 	taskDetailPattern := `^\s+-`
 	isTaskDetailLine := regexp.MustCompile(taskDetailPattern)
 
@@ -178,17 +178,18 @@ func recordKeep(filePath string) {
 		nextCalculatedLine := nextLine +1
 		taskHandled := false
 		// Check if the current line is a touched task.
-		if isTouchedTask(line) {
+		if isTouchedTask(line) || isActiveTask(line) {
 			taskHandled = true
 			// Record the touched task to journal with timestamp.
 			entry := fmt.Sprintf("%s %s", timestamp, line)
-			fmt.Printf("Recording touched task to journal: %s\n", entry)
+			fmt.Printf("Recording touched/active task to journal: %s\n", entry)
 			xjournalEntries = append(xjournalEntries, entry)
 	
 			// for active tasks, marked the task as touched in the todo file
 			modifiedLine := replaceActiveWithTouchedStatus(line)
 			// Replace active status with a touched status in the task marker and put it back in the todo file
 			if ! isCompletedTask(line){
+				fmt.Printf("line is not completed, adding to updated lines: %s\n", modifiedLine)
 				updatedLines = append(updatedLines, modifiedLine)		
 			}
 			// Process trailing lines (child lines) that start with "-" (indented details).
@@ -293,8 +294,8 @@ func replaceActiveWithTouchedStatus(line string) string {
 
 
 func isTask(line string) bool {
-	// Check if the line starts with "- ["
-	return strings.HasPrefix(line, "- [")
+	// Check if the line starts with zero or more whitespace chars and "- ["
+	return regexp.MustCompile(`^\s*- \[`).MatchString(line) 
 }
 
 func updateCalendar(filePath string) {
@@ -488,7 +489,7 @@ func main() {
 		recordKeep(*inputFilePath)
 
 	case "version":
-		fmt.Println("taskmasterra version v2.0.1")
+		fmt.Println("taskmasterra version v2.0.2")
 		return
 
 	default:

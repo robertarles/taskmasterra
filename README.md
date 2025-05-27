@@ -37,12 +37,14 @@ Taskra (seperate nvim extension) will highlight the task priority with fibonacci
 #### For the latest version
 
 ```bash
-go install github.com/robertarles/taskmasterra@latest
+go install github.com/robertarles/taskmasterra/v2@latest
 ```
 
-# Or for a specific version (replace v0.0.0 with your version)
+Or for a specific version:
 
-# go install github.com/robertarles/taskmasterra@v0.0.0
+```bash
+go install github.com/robertarles/taskmasterra/v2@v2.0.2
+```
 
 Transfer the binary to the target Mac (using any method like AirDrop, scp, or a USB drive):
 
