@@ -25,7 +25,7 @@ func isCompletedTask(line string) bool {
 }
 
 /**
- * "active" can be any task needing attention today, defined by regex /- \\[[tABXW]\\] /
+ * "active" can be any task needing attention today
  **/
 func isActiveTask(line string) bool {
 	
@@ -35,7 +35,7 @@ func isActiveTask(line string) bool {
 	}
 
 	// check if the line matches the regex
-	if regexp.MustCompile(`^\s*- \[[TABW]\]`).MatchString(line) {
+	if regexp.MustCompile(`^\s*- \[.\] !! `).MatchString(line) {
 		return true
 	}
 
@@ -43,7 +43,7 @@ func isActiveTask(line string) bool {
 }
 
 /**
- * active AND touched is defined by regex /- \\[[T]\\] /
+ * active AND touched 
  **/
 func isTouchedTask(line string) bool {
 	// short circuit for non task lines
@@ -52,7 +52,7 @@ func isTouchedTask(line string) bool {
 	}
 
 	// check if the line matches the regex
-	if regexp.MustCompile(`^\s*- \[[tXx]\]`).MatchString(line) {
+	if regexp.MustCompile(`^\s*- \[[BWT]\]`).MatchString(line) {
 		return true
 	}
 
@@ -186,7 +186,7 @@ func recordKeep(filePath string) {
 			xjournalEntries = append(xjournalEntries, entry)
 	
 			// for active tasks, marked the task as touched in the todo file
-			modifiedLine := replaceActiveWithTouchedStatus(line)
+			modifiedLine := replaceTouchedWithNonTouchedStatus(line)
 			// Replace active status with a touched status in the task marker and put it back in the todo file
 			if ! isCompletedTask(line){
 				fmt.Printf("line is not completed, adding to updated lines: %s\n", modifiedLine)
@@ -284,11 +284,10 @@ func replaceStatus(line string, oldMarker, newMarker rune) string {
 /** 
  * replace ACTIVE task status with a TOUCHED version of the status
  */
-func replaceActiveWithTouchedStatus(line string) string {
-	line = replaceStatus(line, 'X', 'x');
+func replaceTouchedWithNonTouchedStatus(line string) string {
+	line = replaceStatus(line, 'B', 'b');	
 	line = replaceStatus(line, 'W', 'w');
-	line = replaceStatus(line, 'T', 'w');
-	line = replaceStatus(line, 'B', 'b')	
+	line = replaceStatus(line, 'X', 'x');
 	return line
 }
 
@@ -489,7 +488,7 @@ func main() {
 		recordKeep(*inputFilePath)
 
 	case "version":
-		fmt.Println("taskmasterra version v2.0.2")
+		fmt.Println("taskmasterra version v2.0.3")
 		return
 
 	default:

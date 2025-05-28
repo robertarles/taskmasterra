@@ -64,3 +64,16 @@ chmod +x ~/taskmasterra
 sudo mv ~/taskmasterra /usr/local/bin/
 taskmasterra --help
 ```
+
+## Building and Versioning
+
+- Change the version in this readme, and in the main.go file
+- ./build.sh...
+- git add and commit...
+
+Versioning is handled by git tags.
+
+```bash
+git tag -a v2.0.3 -m "Version 2.0.3"
+git push origin v2.0.3
+```
