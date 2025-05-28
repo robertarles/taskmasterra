@@ -23,9 +23,9 @@ Active(.) and Touched(:) will be added to reminders.
 Markdown file, task examples:
 
 ``` markdown
-- [w] . A1 task is active (.) and has some work done ([w]), A priority and fibonacci est effort 1, active or touched so added to reminders due today
-- [x] : B1 task that is touched (:) today, and is completed ([x]) active or touched so added to reminders due today
-- [b] B2 blocked task that is not active or touched today. will not be added to reminders\
+- [w] !! A1 task is active (!!) and has some work done ([w]), A priority and fibonacci est effort 1, active or touched so added to reminders due today
+- [X] B1 task that is touched (capitalized) today, and is completed ([X]) active or touched so added to reminders due today
+- [b] B2 blocked task that is not active or touched today. will not be added to reminders
 ```
 
 Taskra (seperate nvim extension) will highlight the task priority with fibonacci entry
@@ -43,7 +43,7 @@ go install github.com/robertarles/taskmasterra/v2@latest
 Or for a specific version:
 
 ```bash
-go install github.com/robertarles/taskmasterra/v2@v2.0.2
+go install github.com/robertarles/taskmasterra/v2@v2.0.3
 ```
 
 Transfer the binary to the target Mac (using any method like AirDrop, scp, or a USB drive):
