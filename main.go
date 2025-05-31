@@ -493,7 +493,7 @@ func main() {
 		recordKeep(*inputFilePath)
 
 	case "version":
-		fmt.Println("taskmasterra version v2.0.4")
+		fmt.Println("taskmasterra version v2.0.5")
 		return
 
 	default:

@@ -74,6 +74,6 @@ taskmasterra --help
 Versioning is handled by git tags.
 
 ```bash
-git tag -a v2.0.4 -m "Version 2.0.4"
-git push origin v2.0.4
+git tag -a v2.0.4 -m "Version 2.0.5"
+git push origin v2.0.5
 ```
