@@ -87,7 +87,7 @@ fmt:
 # Install binary to GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	$(GOCMD) install $(LDFLAGS) $(MAIN_PACKAGE)
+	$(GOCMD) install $(LDFLAGS) github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@$(VERSION)
 
 # Version bumping targets
 MAJOR=$(word 1,$(subst ., ,$(subst v,,$(CURRENT_VERSION))))
