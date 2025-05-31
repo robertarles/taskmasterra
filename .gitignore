@@ -1,2 +1,16 @@
+# Build directory
+build/
+
+# Binary files
+taskmasterra
+taskmasterra-*
+
+# IDE files
+.idea/
+.vscode/
+
+# OS files
+.DS_Store
+
 todo.*.md
 todo.md

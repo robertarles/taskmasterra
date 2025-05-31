@@ -104,7 +104,7 @@ release-major: VERSION=v$(shell echo $$(($(MAJOR)+1))).0.0
 release-major: release
 
 # Create a new release
-release: cross-build
+release:
 	@if [ "$(VERSION)" = "$(CURRENT_VERSION)" ]; then \
 		echo "Error: No version specified. Use make release-patch, release-minor, or release-major"; \
 		exit 1; \
@@ -117,7 +117,11 @@ release: cross-build
 	@git tag -a $(VERSION) -m "Release $(VERSION)"
 	@git push origin HEAD
 	@git push origin $(VERSION)
+	@echo "Building release artifacts..."
+	@make clean
+	@make cross-build
 	@echo "Created and pushed tag $(VERSION)"
+	@echo "Build artifacts are ready in the build directory"
 	@echo "Don't forget to create the release on GitHub with the build artifacts"
 
 # Show help
