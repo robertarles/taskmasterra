@@ -111,7 +111,7 @@ release: cross-build
 	fi
 	@echo "Creating release $(VERSION)..."
 	@echo "Updating go.mod..."
-	@go mod edit -module github.com/robertarles/taskmasterra/v2@$(VERSION)
+	@go mod edit -module github.com/robertarles/taskmasterra/v2
 	@git add go.mod
 	@git commit -m "chore: bump version to $(VERSION)"
 	@git tag -a $(VERSION) -m "Release $(VERSION)"
