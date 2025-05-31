@@ -6,21 +6,24 @@ import (
 )
 
 func init() {
-	// If version info wasn't provided via ldflags, try to get it from build info
-	if Version == "dev" {
-		if info, ok := debug.ReadBuildInfo(); ok {
-			// Get version from module version
-			if info.Main.Version != "(devel)" && info.Main.Version != "" {
-				Version = info.Main.Version
-			}
-			
-			// Get commit from vcs information
+	if info, ok := debug.ReadBuildInfo(); ok {
+		// Get version from module version if not set via ldflags
+		if Version == "dev" && info.Main.Version != "(devel)" && info.Main.Version != "" {
+			Version = info.Main.Version
+		}
+		
+		// Always try to get commit and build time if not set via ldflags
+		if Commit == "none" || BuildTime == "unknown" {
 			for _, setting := range info.Settings {
 				switch setting.Key {
 				case "vcs.revision":
-					Commit = setting.Value[:7] // First 7 chars of commit hash
+					if Commit == "none" {
+						Commit = setting.Value[:7] // First 7 chars of commit hash
+					}
 				case "vcs.time":
-					BuildTime = setting.Value
+					if BuildTime == "unknown" {
+						BuildTime = setting.Value
+					}
 				}
 			}
 		}
