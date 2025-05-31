@@ -1,4 +1,54 @@
-# TaskMasterRa
+# Taskmasterra
+
+A task management tool for maintaining markdown-based todo lists with journal and archive capabilities.
+
+## Installation
+
+You can install taskmasterra using Go:
+
+```bash
+# Latest version (version info will be 'latest')
+go install github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@latest
+
+# Specific version with proper version information
+GOOS=$(go env GOOS) GOARCH=$(go env GOARCH) go install -ldflags "-X main.Version=2.0.10" github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@v2.0.10
+```
+
+## Usage
+
+```bash
+# Show version
+taskmasterra version
+
+# Show help
+taskmasterra help
+
+# Update calendar with today's tasks
+taskmasterra updatecal -i path/to/todo.md
+
+# Record tasks to journal and archive
+taskmasterra recordkeep -i path/to/todo.md
+```
+
+## Development
+
+Build and test locally:
+
+```bash
+# Build all platforms
+make cross-build
+
+# Run tests
+make test
+
+# Format code
+make fmt
+
+# Create a new release
+make release-patch  # For patch version (x.y.Z)
+make release-minor  # For minor version (x.Y.0)
+make release-major  # For major version (X.0.0)
+```
 
 Manage my tasks with `recordkeep` for journaling and archiving activities.
 
@@ -29,41 +79,6 @@ Markdown file, task examples:
 ```
 
 Taskra (seperate nvim extension) will highlight the task priority with fibonacci entry
-
-## Installation
-
-### Using `go`
-
-#### For the latest version
-
-```bash
-go install github.com/robertarles/taskmasterra/v2@latest
-```
-
-Or for a specific version:
-
-```bash
-go install github.com/robertarles/taskmasterra/v2@v2.0.4
-```
-
-Transfer the binary to the target Mac (using any method like AirDrop, scp, or a USB drive):
-
-### Example install using scp (from your current machine)
-
-Download the appropriate binary and rename it to `taskmasterra`
-
-#### Make it executable
-
-```bash
-chmod +x ~/taskmasterra
-```
-
-#### Move it to a location in your path (e.g. /usr/local/bin (requires sudo))
-
-```bash
-sudo mv ~/taskmasterra /usr/local/bin/
-taskmasterra --help
-```
 
 ## Building and Versioning
 

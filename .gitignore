@@ -1,9 +1,3 @@
-# Build directory
-build/
-
-# Binary files
-taskmasterra
-taskmasterra-*
 
 # IDE files
 .idea/

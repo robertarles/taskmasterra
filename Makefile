@@ -24,7 +24,7 @@ COMMIT=$(shell git rev-parse --short HEAD)
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # Linker flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
+LDFLAGS=-ldflags "-X main.Version=$(subst v,,$(VERSION)) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
 
 # Cross compilation settings
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64
@@ -87,7 +87,10 @@ fmt:
 # Install binary to GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	$(GOCMD) install $(LDFLAGS) github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@$(VERSION)
+	@echo "To install, run one of these commands:"
+	@echo "  GOOS=$$(go env GOOS) GOARCH=$$(go env GOARCH) go install $(LDFLAGS) github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@$(VERSION)"
+	@echo "  # Or for latest:"
+	@echo "  go install github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@latest"
 
 # Version bumping targets
 MAJOR=$(word 1,$(subst ., ,$(subst v,,$(CURRENT_VERSION))))
@@ -110,14 +113,6 @@ release:
 		exit 1; \
 	fi
 	@echo "Creating release $(VERSION)..."
-	@echo "Updating go.mod..."
-	@go mod edit -module github.com/robertarles/taskmasterra/v2
-	@if git diff --quiet go.mod; then \
-		echo "No changes needed in go.mod"; \
-	else \
-		git add go.mod && \
-		git commit -m "chore: bump version to $(VERSION)"; \
-	fi
 	@git tag -a $(VERSION) -m "Release $(VERSION)"
 	@git push origin HEAD
 	@git push origin $(VERSION)

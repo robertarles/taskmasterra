@@ -227,7 +227,8 @@ func main() {
 		}
 
 	case "version":
-		fmt.Printf("taskmasterra %s (commit: %s, built at: %s)\n", Version, Commit, BuildTime)
+		fmt.Println(getVersionString())
+		return
 
 	default:
 		printHelp()
