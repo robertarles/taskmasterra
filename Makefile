@@ -113,14 +113,14 @@ release:
 		exit 1; \
 	fi
 	@echo "Creating release $(VERSION)..."
-	@git tag -a $(VERSION) -m "Release $(VERSION)"
-	@git push origin HEAD
-	@git push origin $(VERSION)
 	@echo "Building release artifacts..."
 	@make clean
 	@make cross-build
-	@echo "Created and pushed tag $(VERSION)"
 	@echo "Build artifacts are ready in the build directory"
+	@git tag -a $(VERSION) -m "Release $(VERSION)"
+	@git push origin HEAD
+	@git push origin $(VERSION)
+	@echo "Created and pushed tag $(VERSION)"
 	@echo "Don't forget to create the release on GitHub with the build artifacts"
 
 # Show help
