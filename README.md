@@ -43,7 +43,7 @@ go install github.com/robertarles/taskmasterra/v2@latest
 Or for a specific version:
 
 ```bash
-go install github.com/robertarles/taskmasterra/v2@v2.0.3
+go install github.com/robertarles/taskmasterra/v2@v2.0.4
 ```
 
 Transfer the binary to the target Mac (using any method like AirDrop, scp, or a USB drive):
@@ -74,6 +74,6 @@ taskmasterra --help
 Versioning is handled by git tags.
 
 ```bash
-git tag -a v2.0.3 -m "Version 2.0.3"
-git push origin v2.0.3
+git tag -a v2.0.4 -m "Version 2.0.4"
+git push origin v2.0.4
 ```
