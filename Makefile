@@ -112,8 +112,12 @@ release:
 	@echo "Creating release $(VERSION)..."
 	@echo "Updating go.mod..."
 	@go mod edit -module github.com/robertarles/taskmasterra/v2
-	@git add go.mod
-	@git commit -m "chore: bump version to $(VERSION)"
+	@if git diff --quiet go.mod; then \
+		echo "No changes needed in go.mod"; \
+	else \
+		git add go.mod && \
+		git commit -m "chore: bump version to $(VERSION)"; \
+	fi
 	@git tag -a $(VERSION) -m "Release $(VERSION)"
 	@git push origin HEAD
 	@git push origin $(VERSION)
