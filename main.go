@@ -52,7 +52,7 @@ func isTouchedTask(line string) bool {
 	}
 
 	// check if the line matches the regex
-	if regexp.MustCompile(`^\s*- \[[BWT]\]`).MatchString(line) {
+	if regexp.MustCompile(`^\s*- \[[BWX]\]`).MatchString(line) {
 		return true
 	}
 
@@ -168,7 +168,7 @@ func recordKeep(filePath string) {
 	timestamp := currentTime.Format("[2006-01-02 15:04:05 UTC]") // Format as [YYYY-MM-DD HH:MM:SS UTC]
 
 	// Compile the pattern for indented subtasks/items
-	taskDetailPattern := `^\s+-`
+	taskDetailPattern := `^\s+- `
 	isTaskDetailLine := regexp.MustCompile(taskDetailPattern)
 
 	// Use an index-based loop so we can jump over trailing lines that are processed.
@@ -293,8 +293,13 @@ func replaceTouchedWithNonTouchedStatus(line string) string {
 
 
 func isTask(line string) bool {
-	// Check if the line starts with zero or more whitespace chars and "- ["
-	return regexp.MustCompile(`^\s*- \[`).MatchString(line) 
+	// Check if the line starts with "- ["
+	return regexp.MustCompile(`^- \[`).MatchString(line) 
+}
+
+func isSubTask(line string) bool {
+	// Check if the line starts with one or more whitespace chars and "- ["
+	return regexp.MustCompile(`^\s+- \[`).MatchString(line) 
 }
 
 func updateCalendar(filePath string) {
