@@ -67,7 +67,8 @@ func recordKeep(filePath string) error {
 				modifiedLine := task.ConvertActiveToTouched(line)
 				updatedLines = append(updatedLines, modifiedLine)
 			}else{
-				archiveEntries = append(archiveEntries, line)
+				entry := fmt.Sprintf("%s %s", timestamp, line)
+				archiveEntries = append(archiveEntries, entry)
 			}
 
 			// Process child items

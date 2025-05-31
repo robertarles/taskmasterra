@@ -24,7 +24,7 @@ COMMIT=$(shell git rev-parse --short HEAD)
 BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 
 # Linker flags
-LDFLAGS=-ldflags "-X main.Version=$(subst v,,$(VERSION)) -X main.Commit=$(COMMIT) -X main.BuildTime=$(BUILD_TIME)"
+LDFLAGS=-ldflags "-X main.Version=$(subst v,,$(VERSION))"
 
 # Cross compilation settings
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64
@@ -43,7 +43,7 @@ cross-build:
 	@echo "Cross-compiling for all platforms..."
 	@mkdir -p $(BUILD_DIR)
 	@$(foreach p,$(PLATFORMS), \
-		echo "Building for $(p)..." && \
+		echo "Building for $(p)...$(LDFLAGS)" && \
 		GOOS=$(word 1,$(subst /, ,$p)) \
 		GOARCH=$(word 2,$(subst /, ,$p)) \
 		$(GOBUILD) $(LDFLAGS) \
@@ -61,7 +61,12 @@ clean:
 # Run tests
 test:
 	@echo "Running tests..."
-	$(GOTEST) -v ./...
+	@./test/test.sh
+	@echo "Manually check todo.md, todo.xjournal.md, and todo.xarchive.md"
+#$(GOTEST) -v ./...
+test-reset:
+	@echo "Resetting test files..."
+	@./test/reset-testfiles.sh
 
 # Run linting
 lint:
