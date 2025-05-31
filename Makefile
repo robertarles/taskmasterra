@@ -117,6 +117,7 @@ release:
 	@make clean
 	@make cross-build
 	@echo "Build artifacts are ready in the build directory"
+	@git commit -am "chore: bump version to $(VERSION)"
 	@git tag -a $(VERSION) -m "Release $(VERSION)"
 	@git push origin HEAD
 	@git push origin $(VERSION)
