@@ -1,0 +1,678 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>taskmasterra: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (0.0%)</option>
+				
+				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (0.0%)</option>
+				
+				<option value="file2">github.com/robertarles/taskmasterra/v2/pkg/journal/journal.go (0.0%)</option>
+				
+				<option value="file3">github.com/robertarles/taskmasterra/v2/pkg/reminder/reminder.go (0.0%)</option>
+				
+				<option value="file4">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "bufio"
+        "flag"
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+
+        "github.com/robertarles/taskmasterra/v2/pkg/journal"
+        "github.com/robertarles/taskmasterra/v2/pkg/reminder"
+        "github.com/robertarles/taskmasterra/v2/pkg/task"
+)
+
+// Build information. Populated at build-time.
+var (
+        Version   = "dev"
+        Commit    = "none"
+        BuildTime = "unknown"
+)
+
+func expandPath(path string) (string, error) <span class="cov0" title="0">{
+        if strings.HasPrefix(path, "~") </span><span class="cov0" title="0">{
+                homeDir, err := os.UserHomeDir()
+                if err != nil </span><span class="cov0" title="0">{
+                        return "", err
+                }</span>
+                <span class="cov0" title="0">path = filepath.Join(homeDir, path[1:])</span>
+        } else<span class="cov0" title="0"> if strings.HasPrefix(path, "$HOME") </span><span class="cov0" title="0">{
+                homeDir, exists := os.LookupEnv("HOME")
+                if !exists </span><span class="cov0" title="0">{
+                        return "", fmt.Errorf("environment variable HOME not set")
+                }</span>
+                <span class="cov0" title="0">path = filepath.Join(homeDir, path[len("$HOME"):])</span>
+        }
+        <span class="cov0" title="0">return path, nil</span>
+}
+
+func recordKeep(filePath string) error <span class="cov0" title="0">{
+        expandedPath, err := expandPath(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error expanding file path: %w", err)
+        }</span>
+
+        // Read the original file
+        <span class="cov0" title="0">content, err := os.ReadFile(expandedPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error reading file: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">lines := strings.Split(string(content), "\n")
+        jm := journal.NewManager(expandedPath)
+        timestamp := journal.FormatTimestamp()
+
+        var journalEntries, archiveEntries, updatedLines []string
+        
+        for i := 0; i &lt; len(lines); </span><span class="cov0" title="0">{
+                line := lines[i]
+                nextLine := i + 1
+
+                if task.IsTouched(line) || task.IsActive(line) </span><span class="cov0" title="0">{
+                        entry := fmt.Sprintf("%s %s", timestamp, line)
+                        journalEntries = append(journalEntries, entry)
+
+                        if !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                                modifiedLine := task.ConvertActiveToTouched(line)
+                                updatedLines = append(updatedLines, modifiedLine)
+                        }</span>else<span class="cov0" title="0">{
+                                entry := fmt.Sprintf("%s %s", timestamp, line)
+                                archiveEntries = append(archiveEntries, entry)
+                        }</span>
+
+                        // Process child items
+                        <span class="cov0" title="0">for j := nextLine; j &lt; len(lines); j++ </span><span class="cov0" title="0">{
+                                if task.IsTaskDetail(lines[j]) </span><span class="cov0" title="0">{
+                                        journalEntries = append(journalEntries, lines[j])
+                                        if !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                                                updatedLines = append(updatedLines, lines[j])
+                                        }</span>
+                                        <span class="cov0" title="0">nextLine = j + 1</span>
+                                } else<span class="cov0" title="0"> {
+                                        break</span>
+                                }
+                        }
+                } else<span class="cov0" title="0"> if task.IsCompleted(line) </span><span class="cov0" title="0">{
+                        entry := fmt.Sprintf("%s %s", timestamp, line)
+                        archiveEntries = append(archiveEntries, entry)
+
+                        // Process child items
+                        for j := nextLine; j &lt; len(lines); j++ </span><span class="cov0" title="0">{
+                                if task.IsTaskDetail(lines[j]) </span><span class="cov0" title="0">{
+                                        archiveEntries = append(archiveEntries, lines[j])
+                                        nextLine = j + 1
+                                }</span> else<span class="cov0" title="0"> {
+                                        break</span>
+                                }
+                        }
+                } else<span class="cov0" title="0"> {
+                        updatedLines = append(updatedLines, line)
+                }</span>
+
+                <span class="cov0" title="0">i = nextLine</span>
+        }
+
+        // Write to journal and archive
+        <span class="cov0" title="0">if err := jm.WriteToJournal(journalEntries); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error writing to journal: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if err := jm.WriteToArchive(archiveEntries); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error writing to archive: %w", err)
+        }</span>
+
+        // Update original file
+        <span class="cov0" title="0">if err := os.WriteFile(expandedPath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error updating original file: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func updateCalendar(filePath string) error <span class="cov0" title="0">{
+        expandedPath, err := expandPath(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error expanding file path: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">baseFileName := filepath.Base(expandedPath)
+        listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
+
+        rs := reminder.NewService(listName)
+        if err := rs.ClearList(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to clear reminders list: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">file, err := os.Open(expandedPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error opening file: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer file.Close()
+
+        scanner := bufio.NewScanner(file)
+        var currentTask string
+        var notes []string
+
+        for scanner.Scan() </span><span class="cov0" title="0">{
+                line := scanner.Text()
+
+                if task.IsTask(line) &amp;&amp; !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                        // If we have a previous task, add it with its notes
+                        if currentTask != "" </span><span class="cov0" title="0">{
+                                if err := rs.AddReminder(currentTask, task.IsActive(line), strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
+                                        return fmt.Errorf("failed to add reminder: %w", err)
+                                }</span>
+                        }
+
+                        // Start new task
+                        <span class="cov0" title="0">closingBracketIndex := strings.Index(line, "]")
+                        if closingBracketIndex != -1 </span><span class="cov0" title="0">{
+                                currentTask = strings.TrimSpace(line[closingBracketIndex+1:])
+                                notes = nil
+                        }</span>
+                } else<span class="cov0" title="0"> if currentTask != "" &amp;&amp; task.IsTaskDetail(line) </span><span class="cov0" title="0">{
+                        // Collect notes for current task
+                        notes = append(notes, line)
+                }</span>
+        }
+
+        // Add the last task if there is one
+        <span class="cov0" title="0">if currentTask != "" </span><span class="cov0" title="0">{
+                if err := rs.AddReminder(currentTask, false, strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("failed to add reminder: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func printHelp() <span class="cov0" title="0">{
+        fmt.Println("Usage: taskmasterra &lt;command&gt; [options]")
+        fmt.Println("Commands:")
+        fmt.Println("  updatecal     Update the calendar with today's tasks")
+        fmt.Println("  recordkeep    Record tasks to journal and archive files")
+        fmt.Println("  version       Show the version of taskmasterra")
+        fmt.Println("  help          Show this help message")
+}</span>
+
+func main() <span class="cov0" title="0">{
+        if len(os.Args) &lt; 2 </span><span class="cov0" title="0">{
+                printHelp()
+                return
+        }</span>
+
+        <span class="cov0" title="0">command := os.Args[1]
+
+        switch command </span>{
+        case "updatecal":<span class="cov0" title="0">
+                updateCalCmd := flag.NewFlagSet("updatecal", flag.ExitOnError)
+                inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
+                updateCalCmd.Parse(os.Args[2:])
+
+                if *inputFilePath == "" </span><span class="cov0" title="0">{
+                        fmt.Println("Error: Input file path is required for updatecal command. Use -i to specify the path.")
+                        updateCalCmd.Usage()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := updateCalendar(*inputFilePath); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+        case "recordkeep":<span class="cov0" title="0">
+                recordKeepCmd := flag.NewFlagSet("recordkeep", flag.ExitOnError)
+                inputFilePath := recordKeepCmd.String("i", "", "Path to the markdown input file")
+                recordKeepCmd.Parse(os.Args[2:])
+
+                if *inputFilePath == "" </span><span class="cov0" title="0">{
+                        fmt.Println("Error: Input file path is required for recordkeep command. Use -i to specify the path.")
+                        recordKeepCmd.Usage()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := recordKeep(*inputFilePath); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+        case "version":<span class="cov0" title="0">
+                fmt.Println(getVersionString())
+                return</span>
+
+        default:<span class="cov0" title="0">
+                printHelp()</span>
+        }
+} </pre>
+		
+		<pre class="file" id="file1" style="display: none">package main
+
+import (
+        "fmt"
+        "runtime/debug"
+)
+
+func init() <span class="cov0" title="0">{
+        if info, ok := debug.ReadBuildInfo(); ok </span><span class="cov0" title="0">{
+                // Get version from module version if not set via ldflags
+                if Version == "dev" &amp;&amp; info.Main.Version != "(devel)" &amp;&amp; info.Main.Version != "" </span><span class="cov0" title="0">{
+                        Version = info.Main.Version
+                }</span>
+                
+        }
+}
+
+func getVersionString() string <span class="cov0" title="0">{
+        return fmt.Sprintf("taskmasterra %s", Version)
+}</span> </pre>
+		
+		<pre class="file" id="file2" style="display: none">package journal
+
+import (
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "time"
+)
+
+// Manager handles journal and archive operations
+type Manager struct {
+        JournalPath  string
+        ArchivePath  string
+        OriginalPath string
+}
+
+// NewManager creates a new journal manager
+func NewManager(filePath string) *Manager <span class="cov0" title="0">{
+        baseFileName := filepath.Base(filePath)
+        baseName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
+        dirPath := filepath.Dir(filePath)
+        
+        return &amp;Manager{
+                JournalPath:  filepath.Join(dirPath, baseName+".xjournal.md"),
+                ArchivePath:  filepath.Join(dirPath, baseName+".xarchive.md"),
+                OriginalPath: filePath,
+        }
+}</span>
+
+// WriteToJournal writes entries to the journal file
+func (m *Manager) WriteToJournal(entries []string) error <span class="cov0" title="0">{
+        if len(entries) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">var existingContent []byte
+        if _, err := os.Stat(m.JournalPath); err == nil </span><span class="cov0" title="0">{
+                existingContent, err = os.ReadFile(m.JournalPath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error reading journal file: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">newContent := []byte(strings.Join(entries, "\n") + "\n")
+        newContent = append(newContent, existingContent...)
+        
+        return os.WriteFile(m.JournalPath, newContent, 0644)</span>
+}
+
+// WriteToArchive writes entries to the archive file
+func (m *Manager) WriteToArchive(entries []string) error <span class="cov0" title="0">{
+        if len(entries) == 0 </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">var existingContent []byte
+        if _, err := os.Stat(m.ArchivePath); err == nil </span><span class="cov0" title="0">{
+                existingContent, err = os.ReadFile(m.ArchivePath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error reading archive file: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">newContent := []byte(strings.Join(entries, "\n") + "\n")
+        newContent = append(newContent, existingContent...)
+        
+        return os.WriteFile(m.ArchivePath, newContent, 0644)</span>
+}
+
+// FormatTimestamp returns a formatted UTC timestamp
+func FormatTimestamp() string <span class="cov0" title="0">{
+        currentTime := time.Now().UTC()
+        return currentTime.Format("[2006-01-02 15:04:05 UTC]")
+}</span> </pre>
+		
+		<pre class="file" id="file3" style="display: none">package reminder
+
+import (
+        "bytes"
+        "fmt"
+        "os/exec"
+)
+
+// Service handles interactions with macOS Reminders
+type Service struct {
+        ListName string
+}
+
+// NewService creates a new reminder service
+func NewService(listName string) *Service <span class="cov0" title="0">{
+        return &amp;Service{
+                ListName: listName,
+        }
+}</span>
+
+// ClearList removes all reminders from the specified list
+func (s *Service) ClearList() error <span class="cov0" title="0">{
+        script := fmt.Sprintf(`
+                tell application "Reminders"
+                        if exists list "%s" then
+                                tell list "%s"
+                                        delete reminders
+                                end tell
+                        end if
+                end tell
+        `, s.ListName, s.ListName)
+
+        cmd := exec.Command("osascript", "-e", script)
+        var stderr bytes.Buffer
+        cmd.Stderr = &amp;stderr
+
+        if err := cmd.Run(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("osascript error: %w: %s", err, stderr.String())
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// AddReminder adds a new reminder to the list
+func (s *Service) AddReminder(task string, withDueDate bool, note string) error <span class="cov0" title="0">{
+        properties := fmt.Sprintf(`{name:"%s"`, task)
+        if note != "" </span><span class="cov0" title="0">{
+                properties += fmt.Sprintf(`, body:"%s"`, note)
+        }</span>
+        <span class="cov0" title="0">if withDueDate </span><span class="cov0" title="0">{
+                properties += `, due date:dueDate`
+        }</span>
+        <span class="cov0" title="0">properties += `}`
+
+        dueDateSetup := ""
+        if withDueDate </span><span class="cov0" title="0">{
+                dueDateSetup = `
+                        set dueDate to current date
+                        set hours of dueDate to 16
+                        set minutes of dueDate to 0
+                        set seconds of dueDate to 0`
+        }</span>
+
+        <span class="cov0" title="0">script := fmt.Sprintf(`
+                tell application "Reminders"
+                        if not (exists list "%s") then
+                                make new list with properties {name:"%s"}
+                        end if%s
+                        tell list "%s"
+                                make new reminder with properties %s
+                        end tell
+                end tell
+        `, s.ListName, s.ListName, dueDateSetup, s.ListName, properties)
+
+        cmd := exec.Command("osascript", "-e", script)
+        var stderr bytes.Buffer
+        cmd.Stderr = &amp;stderr
+
+        if err := cmd.Run(); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("osascript error: %w: %s", err, stderr.String())
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+} </pre>
+		
+		<pre class="file" id="file4" style="display: none">package task
+
+import (
+        "fmt"
+        "os"
+        "regexp"
+        "strings"
+
+        "github.com/robertarles/taskmasterra/v2/pkg/journal"
+)
+
+// Task represents a task item with its status and details
+type Task struct {
+        Line string
+}
+
+// IsCompleted checks if a task is marked as completed
+func IsCompleted(line string) bool <span class="cov8" title="1">{
+        if !IsTask(line) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return regexp.MustCompile(`^\s*- \[[Xx]\]`).MatchString(line)</span>
+}
+
+// IsActive checks if a task is marked as active (needs attention today)
+func IsActive(line string) bool <span class="cov8" title="1">{
+        if !IsTask(line) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return regexp.MustCompile(`^\s*- \[.\] !! `).MatchString(line)</span>
+}
+
+// IsTouched checks if a task has been touched/worked on
+func IsTouched(line string) bool <span class="cov8" title="1">{
+        if !IsTask(line) &amp;&amp; !IsSubTask(line) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return regexp.MustCompile(`(^- \[[BWX]\]|^\s+- \[[BWX]\])`).MatchString(line)</span>
+}
+
+// IsTask checks if a line represents a task
+func IsTask(line string) bool <span class="cov8" title="1">{
+        return regexp.MustCompile(`^- \[`).MatchString(line)
+}</span>
+
+// IsSubTask checks if a line represents a subtask
+func IsSubTask(line string) bool <span class="cov8" title="1">{
+        return regexp.MustCompile(`^[ \t]+- \[`).MatchString(line)
+}</span>
+
+// IsTaskDetail checks if a line is an indented detail line
+func IsTaskDetail(line string) bool <span class="cov8" title="1">{
+        return regexp.MustCompile(`^[ \t]+- `).MatchString(line)
+}</span>
+
+// ReplaceStatus replaces the task status marker
+func ReplaceStatus(line string, oldMarker, newMarker rune) string <span class="cov8" title="1">{
+        if regexp.MustCompile(`- \[` + string(oldMarker) + `\]`).MatchString(line) </span><span class="cov8" title="1">{
+                return regexp.MustCompile(`- \[` + string(oldMarker) + `\]`).ReplaceAllString(line, "- [" + string(newMarker) + "]")
+        }</span>
+        <span class="cov8" title="1">return line</span>
+}
+
+// ConvertActiveToTouched converts active task status to touched status
+func ConvertActiveToTouched(line string) string <span class="cov8" title="1">{
+        line = ReplaceStatus(line, 'B', 'b')
+        line = ReplaceStatus(line, 'W', 'w')
+        line = ReplaceStatus(line, 'X', 'x')
+        return line
+}</span>
+
+// ProcessTasks processes a todo file, moving completed tasks to archive and touched tasks to journal
+func ProcessTasks(filePath string) error <span class="cov8" title="1">{
+        // Read the original file
+        content, err := os.ReadFile(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error reading file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">lines := strings.Split(string(content), "\n")
+        jm := journal.NewManager(filePath)
+        timestamp := journal.FormatTimestamp()
+
+        var journalEntries, archiveEntries, updatedLines []string
+        
+        for i := 0; i &lt; len(lines); </span><span class="cov8" title="1">{
+                line := lines[i]
+                nextLine := i + 1
+
+                if IsTouched(line) || IsActive(line) </span><span class="cov8" title="1">{
+                        entry := fmt.Sprintf("%s %s", timestamp, line)
+                        journalEntries = append(journalEntries, entry)
+
+                        if !IsCompleted(line) </span><span class="cov8" title="1">{
+                                modifiedLine := ConvertActiveToTouched(line)
+                                updatedLines = append(updatedLines, modifiedLine)
+                        }</span> else<span class="cov8" title="1"> {
+                                archiveEntries = append(archiveEntries, line)
+                        }</span>
+
+                        // Process child items
+                        <span class="cov8" title="1">for j := nextLine; j &lt; len(lines); j++ </span><span class="cov8" title="1">{
+                                if IsTaskDetail(lines[j]) </span><span class="cov8" title="1">{
+                                        journalEntries = append(journalEntries, lines[j])
+                                        if !IsCompleted(line) </span><span class="cov8" title="1">{
+                                                updatedLines = append(updatedLines, lines[j])
+                                        }</span>
+                                        <span class="cov8" title="1">nextLine = j + 1</span>
+                                } else<span class="cov8" title="1"> {
+                                        break</span>
+                                }
+                        }
+                } else<span class="cov8" title="1"> if IsCompleted(line) </span><span class="cov8" title="1">{
+                        entry := fmt.Sprintf("%s %s", timestamp, line)
+                        archiveEntries = append(archiveEntries, entry)
+
+                        // Process child items
+                        for j := nextLine; j &lt; len(lines); j++ </span><span class="cov8" title="1">{
+                                if IsTaskDetail(lines[j]) </span><span class="cov0" title="0">{
+                                        archiveEntries = append(archiveEntries, lines[j])
+                                        nextLine = j + 1
+                                }</span> else<span class="cov8" title="1"> {
+                                        break</span>
+                                }
+                        }
+                } else<span class="cov8" title="1"> {
+                        updatedLines = append(updatedLines, line)
+                }</span>
+
+                <span class="cov8" title="1">i = nextLine</span>
+        }
+
+        // Write to journal and archive
+        <span class="cov8" title="1">if err := jm.WriteToJournal(journalEntries); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error writing to journal: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if err := jm.WriteToArchive(archiveEntries); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error writing to archive: %w", err)
+        }</span>
+
+        // Update original file
+        <span class="cov8" title="1">if err := os.WriteFile(filePath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error updating original file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+} </pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

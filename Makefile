@@ -58,16 +58,6 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	$(GOCLEAN)
 
-# Run tests
-test:
-#	@echo "Running tests..."
-#	@./test/test.sh
-#	@echo "Manually check todo.md, todo.xjournal.md, and todo.xarchive.md"
-	$(GOTEST) -v ./...
-#test-reset:
-#	@echo "Resetting test files..."
-#	@./test/reset-testfiles.sh
-
 # Run linting
 lint:
 	@echo "Running linter..."
@@ -129,6 +119,20 @@ release:
 	@echo "Created and pushed tag $(VERSION)"
 	@echo "Don't forget to create the release on GitHub with the build artifacts"
 
+# Run tests
+test:
+#	@echo "Running tests..."
+	$(GOTEST) -v ./...
+
+
+# Run tests with coverage
+test-coverage:
+	@echo "Running tests with coverage..."
+	@mkdir -p coverage
+	$(GOTEST) ./... -coverprofile=coverage/coverage.out
+	@go tool cover -html=coverage/coverage.out -o coverage/coverage.html
+	@echo "Coverage report generated in coverage/coverage.html"
+
 # Show help
 help:
 	@echo "Available targets:"
@@ -137,10 +141,11 @@ help:
 	@echo "  make cross-build    - Build for all platforms (darwin/amd64, darwin/arm64, linux/amd64)"
 	@echo "  make clean          - Remove build artifacts"
 	@echo "  make test           - Run tests"
+	@echo "  make test-coverage  - Run tests with coverage report"
 	@echo "  make lint           - Run linter"
 	@echo "  make vet            - Run go vet"
 	@echo "  make fmt            - Format code"
-	@echo "  make install        - Install binary to GOPATH/bin"
+	@echo "  make install        - Show installation instructions"
 	@echo "  make release-patch  - Release a new patch version (x.y.Z)"
 	@echo "  make release-minor  - Release a new minor version (x.Y.0)"
 	@echo "  make release-major  - Release a new major version (X.0.0)"
