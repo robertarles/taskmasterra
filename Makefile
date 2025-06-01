@@ -60,13 +60,13 @@ clean:
 
 # Run tests
 test:
-	@echo "Running tests..."
-	@./test/test.sh
-	@echo "Manually check todo.md, todo.xjournal.md, and todo.xarchive.md"
-#$(GOTEST) -v ./...
-test-reset:
-	@echo "Resetting test files..."
-	@./test/reset-testfiles.sh
+#	@echo "Running tests..."
+#	@./test/test.sh
+#	@echo "Manually check todo.md, todo.xjournal.md, and todo.xarchive.md"
+	$(GOTEST) -v ./...
+#test-reset:
+#	@echo "Resetting test files..."
+#	@./test/reset-testfiles.sh
 
 # Run linting
 lint:
