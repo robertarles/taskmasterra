@@ -143,6 +143,7 @@ func updateCalendar(filePath string) error {
 	scanner := bufio.NewScanner(file)
 	var currentTask string
 	var notes []string
+	var currentLine string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -150,7 +151,7 @@ func updateCalendar(filePath string) error {
 		if task.IsTask(line) && !task.IsCompleted(line) {
 			// If we have a previous task, add it with its notes
 			if currentTask != "" {
-				if err := rs.AddReminder(currentTask, task.IsActive(line), strings.Join(notes, "\n")); err != nil {
+				if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil {
 					return fmt.Errorf("failed to add reminder: %w", err)
 				}
 			}
@@ -159,6 +160,7 @@ func updateCalendar(filePath string) error {
 			closingBracketIndex := strings.Index(line, "]")
 			if closingBracketIndex != -1 {
 				currentTask = strings.TrimSpace(line[closingBracketIndex+1:])
+				currentLine = line
 				notes = nil
 			}
 		} else if currentTask != "" && task.IsTaskDetail(line) {
@@ -169,7 +171,7 @@ func updateCalendar(filePath string) error {
 
 	// Add the last task if there is one
 	if currentTask != "" {
-		if err := rs.AddReminder(currentTask, false, strings.Join(notes, "\n")); err != nil {
+		if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil {
 			return fmt.Errorf("failed to add reminder: %w", err)
 		}
 	}
@@ -198,7 +200,10 @@ func main() {
 	case "updatecal":
 		updateCalCmd := flag.NewFlagSet("updatecal", flag.ExitOnError)
 		inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
-		updateCalCmd.Parse(os.Args[2:])
+		if err := updateCalCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
 
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for updatecal command. Use -i to specify the path.")
@@ -214,7 +219,10 @@ func main() {
 	case "recordkeep":
 		recordKeepCmd := flag.NewFlagSet("recordkeep", flag.ExitOnError)
 		inputFilePath := recordKeepCmd.String("i", "", "Path to the markdown input file")
-		recordKeepCmd.Parse(os.Args[2:])
+		if err := recordKeepCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
 
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for recordkeep command. Use -i to specify the path.")

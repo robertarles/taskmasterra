@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 // Service handles interactions with macOS Reminders
@@ -18,6 +19,15 @@ func NewService(listName string) *Service {
 	}
 }
 
+// escapeAppleScriptString escapes special characters in a string for AppleScript
+func escapeAppleScriptString(s string) string {
+	// Replace backslashes first to avoid double escaping
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	// Replace quotes with escaped quotes
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	return s
+}
+
 // ClearList removes all reminders from the specified list
 func (s *Service) ClearList() error {
 	script := fmt.Sprintf(`
@@ -28,7 +38,7 @@ func (s *Service) ClearList() error {
 				end tell
 			end if
 		end tell
-	`, s.ListName, s.ListName)
+	`, escapeAppleScriptString(s.ListName), escapeAppleScriptString(s.ListName))
 
 	cmd := exec.Command("osascript", "-e", script)
 	var stderr bytes.Buffer
@@ -43,9 +53,14 @@ func (s *Service) ClearList() error {
 
 // AddReminder adds a new reminder to the list
 func (s *Service) AddReminder(task string, withDueDate bool, note string) error {
-	properties := fmt.Sprintf(`{name:"%s"`, task)
+	// Escape special characters in task and note
+	escapedTask := escapeAppleScriptString(task)
+	escapedNote := escapeAppleScriptString(note)
+	escapedListName := escapeAppleScriptString(s.ListName)
+
+	properties := fmt.Sprintf(`{name:"%s"`, escapedTask)
 	if note != "" {
-		properties += fmt.Sprintf(`, body:"%s"`, note)
+		properties += fmt.Sprintf(`, body:"%s"`, escapedNote)
 	}
 	if withDueDate {
 		properties += `, due date:dueDate`
@@ -70,7 +85,7 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
 				make new reminder with properties %s
 			end tell
 		end tell
-	`, s.ListName, s.ListName, dueDateSetup, s.ListName, properties)
+	`, escapedListName, escapedListName, dueDateSetup, escapedListName, properties)
 
 	cmd := exec.Command("osascript", "-e", script)
 	var stderr bytes.Buffer

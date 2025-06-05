@@ -29,8 +29,11 @@ LDFLAGS=-ldflags "-X main.Version=$(subst v,,$(VERSION))"
 # Cross compilation settings
 PLATFORMS=darwin/amd64 darwin/arm64 linux/amd64
 
-# Default target
-all: clean lint test build
+# if no args are provided, defailt to help
+default: help
+
+# clean lint test cross-build
+all: clean lint test cross-build
 
 # Build the application
 build:
@@ -136,7 +139,8 @@ test-coverage:
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  make                - Build the application (same as 'make all')"
+	@echo "  make                - same as 'make help'"
+	@echo "  make all            - do it all, clean, lint, test, cross-build"
 	@echo "  make build          - Build the application"
 	@echo "  make cross-build    - Build for all platforms (darwin/amd64, darwin/arm64, linux/amd64)"
 	@echo "  make clean          - Remove build artifacts"

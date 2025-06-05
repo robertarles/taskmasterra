@@ -8,7 +8,7 @@ You can install taskmasterra using Go:
 
 ```bash
 # Latest version (version info will be 'latest')
-go install github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@v2.0.21
+go install github.com/robertarles/taskmasterra/v2/cmd/taskmasterra@v2.0.22
 
 ```
 
