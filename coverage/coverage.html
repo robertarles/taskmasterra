@@ -55,13 +55,13 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (0.0%)</option>
+				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (58.3%)</option>
 				
-				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (0.0%)</option>
+				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (50.0%)</option>
 				
-				<option value="file2">github.com/robertarles/taskmasterra/v2/pkg/journal/journal.go (0.0%)</option>
+				<option value="file2">github.com/robertarles/taskmasterra/v2/pkg/journal/journal.go (92.3%)</option>
 				
-				<option value="file3">github.com/robertarles/taskmasterra/v2/pkg/reminder/reminder.go (0.0%)</option>
+				<option value="file3">github.com/robertarles/taskmasterra/v2/pkg/reminder/reminder.go (93.3%)</option>
 				
 				<option value="file4">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.0%)</option>
 				
@@ -99,50 +99,50 @@ var (
         BuildTime = "unknown"
 )
 
-func expandPath(path string) (string, error) <span class="cov0" title="0">{
-        if strings.HasPrefix(path, "~") </span><span class="cov0" title="0">{
+func expandPath(path string) (string, error) <span class="cov8" title="1">{
+        if strings.HasPrefix(path, "~") </span><span class="cov8" title="1">{
                 homeDir, err := os.UserHomeDir()
                 if err != nil </span><span class="cov0" title="0">{
                         return "", err
                 }</span>
-                <span class="cov0" title="0">path = filepath.Join(homeDir, path[1:])</span>
-        } else<span class="cov0" title="0"> if strings.HasPrefix(path, "$HOME") </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">path = filepath.Join(homeDir, path[1:])</span>
+        } else<span class="cov8" title="1"> if strings.HasPrefix(path, "$HOME") </span><span class="cov8" title="1">{
                 homeDir, exists := os.LookupEnv("HOME")
                 if !exists </span><span class="cov0" title="0">{
                         return "", fmt.Errorf("environment variable HOME not set")
                 }</span>
-                <span class="cov0" title="0">path = filepath.Join(homeDir, path[len("$HOME"):])</span>
+                <span class="cov8" title="1">path = filepath.Join(homeDir, path[len("$HOME"):])</span>
         }
-        <span class="cov0" title="0">return path, nil</span>
+        <span class="cov8" title="1">return path, nil</span>
 }
 
-func recordKeep(filePath string) error <span class="cov0" title="0">{
+func recordKeep(filePath string) error <span class="cov8" title="1">{
         expandedPath, err := expandPath(filePath)
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error expanding file path: %w", err)
         }</span>
 
         // Read the original file
-        <span class="cov0" title="0">content, err := os.ReadFile(expandedPath)
+        <span class="cov8" title="1">content, err := os.ReadFile(expandedPath)
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error reading file: %w", err)
         }</span>
 
-        <span class="cov0" title="0">lines := strings.Split(string(content), "\n")
+        <span class="cov8" title="1">lines := strings.Split(string(content), "\n")
         jm := journal.NewManager(expandedPath)
         timestamp := journal.FormatTimestamp()
 
         var journalEntries, archiveEntries, updatedLines []string
         
-        for i := 0; i &lt; len(lines); </span><span class="cov0" title="0">{
+        for i := 0; i &lt; len(lines); </span><span class="cov8" title="1">{
                 line := lines[i]
                 nextLine := i + 1
 
-                if task.IsTouched(line) || task.IsActive(line) </span><span class="cov0" title="0">{
+                if task.IsTouched(line) || task.IsActive(line) </span><span class="cov8" title="1">{
                         entry := fmt.Sprintf("%s %s", timestamp, line)
                         journalEntries = append(journalEntries, entry)
 
-                        if !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                        if !task.IsCompleted(line) </span><span class="cov8" title="1">{
                                 modifiedLine := task.ConvertActiveToTouched(line)
                                 updatedLines = append(updatedLines, modifiedLine)
                         }</span>else<span class="cov0" title="0">{
@@ -151,61 +151,61 @@ func recordKeep(filePath string) error <span class="cov0" title="0">{
                         }</span>
 
                         // Process child items
-                        <span class="cov0" title="0">for j := nextLine; j &lt; len(lines); j++ </span><span class="cov0" title="0">{
-                                if task.IsTaskDetail(lines[j]) </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">for j := nextLine; j &lt; len(lines); j++ </span><span class="cov8" title="1">{
+                                if task.IsTaskDetail(lines[j]) </span><span class="cov8" title="1">{
                                         journalEntries = append(journalEntries, lines[j])
-                                        if !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                                        if !task.IsCompleted(line) </span><span class="cov8" title="1">{
                                                 updatedLines = append(updatedLines, lines[j])
                                         }</span>
-                                        <span class="cov0" title="0">nextLine = j + 1</span>
-                                } else<span class="cov0" title="0"> {
+                                        <span class="cov8" title="1">nextLine = j + 1</span>
+                                } else<span class="cov8" title="1"> {
                                         break</span>
                                 }
                         }
-                } else<span class="cov0" title="0"> if task.IsCompleted(line) </span><span class="cov0" title="0">{
+                } else<span class="cov8" title="1"> if task.IsCompleted(line) </span><span class="cov8" title="1">{
                         entry := fmt.Sprintf("%s %s", timestamp, line)
                         archiveEntries = append(archiveEntries, entry)
 
                         // Process child items
-                        for j := nextLine; j &lt; len(lines); j++ </span><span class="cov0" title="0">{
-                                if task.IsTaskDetail(lines[j]) </span><span class="cov0" title="0">{
+                        for j := nextLine; j &lt; len(lines); j++ </span><span class="cov8" title="1">{
+                                if task.IsTaskDetail(lines[j]) </span><span class="cov8" title="1">{
                                         archiveEntries = append(archiveEntries, lines[j])
                                         nextLine = j + 1
-                                }</span> else<span class="cov0" title="0"> {
+                                }</span> else<span class="cov8" title="1"> {
                                         break</span>
                                 }
                         }
-                } else<span class="cov0" title="0"> {
+                } else<span class="cov8" title="1"> {
                         updatedLines = append(updatedLines, line)
                 }</span>
 
-                <span class="cov0" title="0">i = nextLine</span>
+                <span class="cov8" title="1">i = nextLine</span>
         }
 
         // Write to journal and archive
-        <span class="cov0" title="0">if err := jm.WriteToJournal(journalEntries); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err := jm.WriteToJournal(journalEntries); err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error writing to journal: %w", err)
         }</span>
 
-        <span class="cov0" title="0">if err := jm.WriteToArchive(archiveEntries); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err := jm.WriteToArchive(archiveEntries); err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error writing to archive: %w", err)
         }</span>
 
         // Update original file
-        <span class="cov0" title="0">if err := os.WriteFile(expandedPath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if err := os.WriteFile(expandedPath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error updating original file: %w", err)
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
-func updateCalendar(filePath string) error <span class="cov0" title="0">{
+func updateCalendar(filePath string) error <span class="cov8" title="1">{
         expandedPath, err := expandPath(filePath)
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error expanding file path: %w", err)
         }</span>
 
-        <span class="cov0" title="0">baseFileName := filepath.Base(expandedPath)
+        <span class="cov8" title="1">baseFileName := filepath.Base(expandedPath)
         listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
 
         rs := reminder.NewService(listName)
@@ -213,47 +213,49 @@ func updateCalendar(filePath string) error <span class="cov0" title="0">{
                 return fmt.Errorf("failed to clear reminders list: %w", err)
         }</span>
 
-        <span class="cov0" title="0">file, err := os.Open(expandedPath)
+        <span class="cov8" title="1">file, err := os.Open(expandedPath)
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error opening file: %w", err)
         }</span>
-        <span class="cov0" title="0">defer file.Close()
+        <span class="cov8" title="1">defer file.Close()
 
         scanner := bufio.NewScanner(file)
         var currentTask string
         var notes []string
+        var currentLine string
 
-        for scanner.Scan() </span><span class="cov0" title="0">{
+        for scanner.Scan() </span><span class="cov8" title="1">{
                 line := scanner.Text()
 
-                if task.IsTask(line) &amp;&amp; !task.IsCompleted(line) </span><span class="cov0" title="0">{
+                if task.IsTask(line) &amp;&amp; !task.IsCompleted(line) </span><span class="cov8" title="1">{
                         // If we have a previous task, add it with its notes
-                        if currentTask != "" </span><span class="cov0" title="0">{
-                                if err := rs.AddReminder(currentTask, task.IsActive(line), strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
+                        if currentTask != "" </span><span class="cov8" title="1">{
+                                if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
                                         return fmt.Errorf("failed to add reminder: %w", err)
                                 }</span>
                         }
 
                         // Start new task
-                        <span class="cov0" title="0">closingBracketIndex := strings.Index(line, "]")
-                        if closingBracketIndex != -1 </span><span class="cov0" title="0">{
+                        <span class="cov8" title="1">closingBracketIndex := strings.Index(line, "]")
+                        if closingBracketIndex != -1 </span><span class="cov8" title="1">{
                                 currentTask = strings.TrimSpace(line[closingBracketIndex+1:])
+                                currentLine = line
                                 notes = nil
                         }</span>
-                } else<span class="cov0" title="0"> if currentTask != "" &amp;&amp; task.IsTaskDetail(line) </span><span class="cov0" title="0">{
+                } else<span class="cov8" title="1"> if currentTask != "" &amp;&amp; task.IsTaskDetail(line) </span><span class="cov0" title="0">{
                         // Collect notes for current task
                         notes = append(notes, line)
                 }</span>
         }
 
         // Add the last task if there is one
-        <span class="cov0" title="0">if currentTask != "" </span><span class="cov0" title="0">{
-                if err := rs.AddReminder(currentTask, false, strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if currentTask != "" </span><span class="cov8" title="1">{
+                if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
                         return fmt.Errorf("failed to add reminder: %w", err)
                 }</span>
         }
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 func printHelp() <span class="cov0" title="0">{
@@ -277,9 +279,12 @@ func main() <span class="cov0" title="0">{
         case "updatecal":<span class="cov0" title="0">
                 updateCalCmd := flag.NewFlagSet("updatecal", flag.ExitOnError)
                 inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
-                updateCalCmd.Parse(os.Args[2:])
+                if err := updateCalCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error parsing flags: %v\n", err)
+                        os.Exit(1)
+                }</span>
 
-                if *inputFilePath == "" </span><span class="cov0" title="0">{
+                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
                         fmt.Println("Error: Input file path is required for updatecal command. Use -i to specify the path.")
                         updateCalCmd.Usage()
                         return
@@ -293,9 +298,12 @@ func main() <span class="cov0" title="0">{
         case "recordkeep":<span class="cov0" title="0">
                 recordKeepCmd := flag.NewFlagSet("recordkeep", flag.ExitOnError)
                 inputFilePath := recordKeepCmd.String("i", "", "Path to the markdown input file")
-                recordKeepCmd.Parse(os.Args[2:])
+                if err := recordKeepCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error parsing flags: %v\n", err)
+                        os.Exit(1)
+                }</span>
 
-                if *inputFilePath == "" </span><span class="cov0" title="0">{
+                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
                         fmt.Println("Error: Input file path is required for recordkeep command. Use -i to specify the path.")
                         recordKeepCmd.Usage()
                         return
@@ -322,8 +330,8 @@ import (
         "runtime/debug"
 )
 
-func init() <span class="cov0" title="0">{
-        if info, ok := debug.ReadBuildInfo(); ok </span><span class="cov0" title="0">{
+func init() <span class="cov8" title="1">{
+        if info, ok := debug.ReadBuildInfo(); ok </span><span class="cov8" title="1">{
                 // Get version from module version if not set via ldflags
                 if Version == "dev" &amp;&amp; info.Main.Version != "(devel)" &amp;&amp; info.Main.Version != "" </span><span class="cov0" title="0">{
                         Version = info.Main.Version
@@ -354,7 +362,7 @@ type Manager struct {
 }
 
 // NewManager creates a new journal manager
-func NewManager(filePath string) *Manager <span class="cov0" title="0">{
+func NewManager(filePath string) *Manager <span class="cov8" title="1">{
         baseFileName := filepath.Base(filePath)
         baseName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
         dirPath := filepath.Dir(filePath)
@@ -367,47 +375,47 @@ func NewManager(filePath string) *Manager <span class="cov0" title="0">{
 }</span>
 
 // WriteToJournal writes entries to the journal file
-func (m *Manager) WriteToJournal(entries []string) error <span class="cov0" title="0">{
-        if len(entries) == 0 </span><span class="cov0" title="0">{
+func (m *Manager) WriteToJournal(entries []string) error <span class="cov8" title="1">{
+        if len(entries) == 0 </span><span class="cov8" title="1">{
                 return nil
         }</span>
 
-        <span class="cov0" title="0">var existingContent []byte
-        if _, err := os.Stat(m.JournalPath); err == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">var existingContent []byte
+        if _, err := os.Stat(m.JournalPath); err == nil </span><span class="cov8" title="1">{
                 existingContent, err = os.ReadFile(m.JournalPath)
                 if err != nil </span><span class="cov0" title="0">{
                         return fmt.Errorf("error reading journal file: %w", err)
                 }</span>
         }
 
-        <span class="cov0" title="0">newContent := []byte(strings.Join(entries, "\n") + "\n")
+        <span class="cov8" title="1">newContent := []byte(strings.Join(entries, "\n") + "\n")
         newContent = append(newContent, existingContent...)
         
         return os.WriteFile(m.JournalPath, newContent, 0644)</span>
 }
 
 // WriteToArchive writes entries to the archive file
-func (m *Manager) WriteToArchive(entries []string) error <span class="cov0" title="0">{
-        if len(entries) == 0 </span><span class="cov0" title="0">{
+func (m *Manager) WriteToArchive(entries []string) error <span class="cov8" title="1">{
+        if len(entries) == 0 </span><span class="cov8" title="1">{
                 return nil
         }</span>
 
-        <span class="cov0" title="0">var existingContent []byte
-        if _, err := os.Stat(m.ArchivePath); err == nil </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">var existingContent []byte
+        if _, err := os.Stat(m.ArchivePath); err == nil </span><span class="cov8" title="1">{
                 existingContent, err = os.ReadFile(m.ArchivePath)
                 if err != nil </span><span class="cov0" title="0">{
                         return fmt.Errorf("error reading archive file: %w", err)
                 }</span>
         }
 
-        <span class="cov0" title="0">newContent := []byte(strings.Join(entries, "\n") + "\n")
+        <span class="cov8" title="1">newContent := []byte(strings.Join(entries, "\n") + "\n")
         newContent = append(newContent, existingContent...)
         
         return os.WriteFile(m.ArchivePath, newContent, 0644)</span>
 }
 
 // FormatTimestamp returns a formatted UTC timestamp
-func FormatTimestamp() string <span class="cov0" title="0">{
+func FormatTimestamp() string <span class="cov8" title="1">{
         currentTime := time.Now().UTC()
         return currentTime.Format("[2006-01-02 15:04:05 UTC]")
 }</span> </pre>
@@ -418,7 +426,12 @@ import (
         "bytes"
         "fmt"
         "os/exec"
+        "strings"
 )
+
+// execCommand is a variable that holds the exec.Command function.
+// This allows us to replace it with a mock during testing.
+var execCommand = exec.Command
 
 // Service handles interactions with macOS Reminders
 type Service struct {
@@ -426,14 +439,23 @@ type Service struct {
 }
 
 // NewService creates a new reminder service
-func NewService(listName string) *Service <span class="cov0" title="0">{
+func NewService(listName string) *Service <span class="cov8" title="1">{
         return &amp;Service{
                 ListName: listName,
         }
 }</span>
 
+// escapeAppleScriptString escapes special characters in a string for AppleScript
+func escapeAppleScriptString(s string) string <span class="cov8" title="1">{
+        // Replace backslashes first to avoid double escaping
+        s = strings.ReplaceAll(s, "\\", "\\\\")
+        // Replace quotes with escaped quotes
+        s = strings.ReplaceAll(s, "\"", "\\\"")
+        return s
+}</span>
+
 // ClearList removes all reminders from the specified list
-func (s *Service) ClearList() error <span class="cov0" title="0">{
+func (s *Service) ClearList() error <span class="cov8" title="1">{
         script := fmt.Sprintf(`
                 tell application "Reminders"
                         if exists list "%s" then
@@ -442,9 +464,9 @@ func (s *Service) ClearList() error <span class="cov0" title="0">{
                                 end tell
                         end if
                 end tell
-        `, s.ListName, s.ListName)
+        `, escapeAppleScriptString(s.ListName), escapeAppleScriptString(s.ListName))
 
-        cmd := exec.Command("osascript", "-e", script)
+        cmd := execCommand("osascript", "-e", script)
         var stderr bytes.Buffer
         cmd.Stderr = &amp;stderr
 
@@ -452,22 +474,27 @@ func (s *Service) ClearList() error <span class="cov0" title="0">{
                 return fmt.Errorf("osascript error: %w: %s", err, stderr.String())
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 }
 
 // AddReminder adds a new reminder to the list
-func (s *Service) AddReminder(task string, withDueDate bool, note string) error <span class="cov0" title="0">{
-        properties := fmt.Sprintf(`{name:"%s"`, task)
-        if note != "" </span><span class="cov0" title="0">{
-                properties += fmt.Sprintf(`, body:"%s"`, note)
+func (s *Service) AddReminder(task string, withDueDate bool, note string) error <span class="cov8" title="1">{
+        // Escape special characters in task and note
+        escapedTask := escapeAppleScriptString(task)
+        escapedNote := escapeAppleScriptString(note)
+        escapedListName := escapeAppleScriptString(s.ListName)
+
+        properties := fmt.Sprintf(`{name:"%s"`, escapedTask)
+        if note != "" </span><span class="cov8" title="1">{
+                properties += fmt.Sprintf(`, body:"%s"`, escapedNote)
         }</span>
-        <span class="cov0" title="0">if withDueDate </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if withDueDate </span><span class="cov8" title="1">{
                 properties += `, due date:dueDate`
         }</span>
-        <span class="cov0" title="0">properties += `}`
+        <span class="cov8" title="1">properties += `}`
 
         dueDateSetup := ""
-        if withDueDate </span><span class="cov0" title="0">{
+        if withDueDate </span><span class="cov8" title="1">{
                 dueDateSetup = `
                         set dueDate to current date
                         set hours of dueDate to 16
@@ -475,7 +502,7 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
                         set seconds of dueDate to 0`
         }</span>
 
-        <span class="cov0" title="0">script := fmt.Sprintf(`
+        <span class="cov8" title="1">script := fmt.Sprintf(`
                 tell application "Reminders"
                         if not (exists list "%s") then
                                 make new list with properties {name:"%s"}
@@ -484,9 +511,9 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
                                 make new reminder with properties %s
                         end tell
                 end tell
-        `, s.ListName, s.ListName, dueDateSetup, s.ListName, properties)
+        `, escapedListName, escapedListName, dueDateSetup, escapedListName, properties)
 
-        cmd := exec.Command("osascript", "-e", script)
+        cmd := execCommand("osascript", "-e", script)
         var stderr bytes.Buffer
         cmd.Stderr = &amp;stderr
 
@@ -494,7 +521,7 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
                 return fmt.Errorf("osascript error: %w: %s", err, stderr.String())
         }</span>
 
-        <span class="cov0" title="0">return nil</span>
+        <span class="cov8" title="1">return nil</span>
 } </pre>
 		
 		<pre class="file" id="file4" style="display: none">package task
