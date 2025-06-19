@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -152,5 +153,73 @@ func TestSaveConfig(t *testing.T) {
 
 	if loadedConfig.DefaultDueHour != config.DefaultDueHour {
 		t.Errorf("Loaded config doesn't match saved config")
+	}
+}
+
+func TestConfigValidate(t *testing.T) {
+	cases := []struct {
+		name   string
+		cfg    Config
+		wantErr bool
+		msg    string
+	}{
+		{
+			name:   "Valid config",
+			cfg:    *DefaultConfig(),
+			wantErr: false,
+		},
+		{
+			name:   "Invalid due hour",
+			cfg:    Config{DefaultDueHour: 25, DefaultDueMinute: 0, ReminderListName: "List", JournalSuffix: ".xjournal.md", ArchiveSuffix: ".xarchive.md", ActiveMarker: "!!"},
+			wantErr: true,
+			msg:    "default_due_hour",
+		},
+		{
+			name:   "Invalid due minute",
+			cfg:    Config{DefaultDueHour: 10, DefaultDueMinute: 60, ReminderListName: "List", JournalSuffix: ".xjournal.md", ArchiveSuffix: ".xarchive.md", ActiveMarker: "!!"},
+			wantErr: true,
+			msg:    "default_due_minute",
+		},
+		{
+			name:   "Empty reminder list name",
+			cfg:    Config{DefaultDueHour: 10, DefaultDueMinute: 0, ReminderListName: "", JournalSuffix: ".xjournal.md", ArchiveSuffix: ".xarchive.md", ActiveMarker: "!!"},
+			wantErr: true,
+			msg:    "reminder_list_name",
+		},
+		{
+			name:   "Empty journal suffix",
+			cfg:    Config{DefaultDueHour: 10, DefaultDueMinute: 0, ReminderListName: "List", JournalSuffix: "", ArchiveSuffix: ".xarchive.md", ActiveMarker: "!!"},
+			wantErr: true,
+			msg:    "journal_suffix",
+		},
+		{
+			name:   "Empty archive suffix",
+			cfg:    Config{DefaultDueHour: 10, DefaultDueMinute: 0, ReminderListName: "List", JournalSuffix: ".xjournal.md", ArchiveSuffix: "", ActiveMarker: "!!"},
+			wantErr: true,
+			msg:    "archive_suffix",
+		},
+		{
+			name:   "Empty active marker",
+			cfg:    Config{DefaultDueHour: 10, DefaultDueMinute: 0, ReminderListName: "List", JournalSuffix: ".xjournal.md", ArchiveSuffix: ".xarchive.md", ActiveMarker: ""},
+			wantErr: true,
+			msg:    "active_marker",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := c.cfg.Validate()
+			if c.wantErr {
+				if err == nil {
+					t.Errorf("Expected error but got nil")
+				} else if c.msg != "" && !strings.Contains(err.Error(), c.msg) {
+					t.Errorf("Expected error to contain '%s', got '%s'", c.msg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Expected no error, got %v", err)
+				}
+			}
+		})
 	}
 } 

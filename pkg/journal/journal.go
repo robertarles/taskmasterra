@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/robertarles/taskmasterra/v2/pkg/utils"
 )
 
 // Manager handles journal and archive operations
@@ -34,18 +36,16 @@ func (m *Manager) WriteToJournal(entries []string) error {
 		return nil
 	}
 
-	var existingContent []byte
+	var existingContent string
 	if _, err := os.Stat(m.JournalPath); err == nil {
-		existingContent, err = os.ReadFile(m.JournalPath)
+		existingContent, err = utils.ReadFileContent(m.JournalPath)
 		if err != nil {
-			return fmt.Errorf("error reading journal file: %w", err)
+			return fmt.Errorf("error reading journal file '%s': %w", m.JournalPath, err)
 		}
 	}
 
-	newContent := []byte(strings.Join(entries, "\n") + "\n")
-	newContent = append(newContent, existingContent...)
-	
-	return os.WriteFile(m.JournalPath, newContent, 0644)
+	newContent := strings.Join(entries, "\n") + "\n" + existingContent
+	return utils.WriteFileContent(m.JournalPath, newContent)
 }
 
 // WriteToArchive writes entries to the archive file
@@ -54,18 +54,16 @@ func (m *Manager) WriteToArchive(entries []string) error {
 		return nil
 	}
 
-	var existingContent []byte
+	var existingContent string
 	if _, err := os.Stat(m.ArchivePath); err == nil {
-		existingContent, err = os.ReadFile(m.ArchivePath)
+		existingContent, err = utils.ReadFileContent(m.ArchivePath)
 		if err != nil {
-			return fmt.Errorf("error reading archive file: %w", err)
+			return fmt.Errorf("error reading archive file '%s': %w", m.ArchivePath, err)
 		}
 	}
 
-	newContent := []byte(strings.Join(entries, "\n") + "\n")
-	newContent = append(newContent, existingContent...)
-	
-	return os.WriteFile(m.ArchivePath, newContent, 0644)
+	newContent := strings.Join(entries, "\n") + "\n" + existingContent
+	return utils.WriteFileContent(m.ArchivePath, newContent)
 }
 
 // FormatTimestamp returns a formatted UTC timestamp

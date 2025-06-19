@@ -2,11 +2,11 @@ package task
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/robertarles/taskmasterra/v2/pkg/journal"
+	"github.com/robertarles/taskmasterra/v2/pkg/utils"
 )
 
 // Task represents a task item with its status and details
@@ -79,12 +79,12 @@ func ConvertActiveToTouched(line string) string {
 // ProcessTasks processes a todo file, moving completed tasks to archive and touched tasks to journal
 func ProcessTasks(filePath string) error {
 	// Read the original file
-	content, err := os.ReadFile(filePath)
+	content, err := utils.ReadFileContent(filePath)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("error reading file '%s': %w", filePath, err)
 	}
 
-	lines := strings.Split(string(content), "\n")
+	lines := strings.Split(content, "\n")
 	jm := journal.NewManager(filePath)
 	timestamp := journal.FormatTimestamp()
 
@@ -147,8 +147,8 @@ func ProcessTasks(filePath string) error {
 	}
 
 	// Update original file
-	if err := os.WriteFile(filePath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil {
-		return fmt.Errorf("error updating original file: %w", err)
+	if err := utils.WriteFileContent(filePath, strings.Join(updatedLines, "\n")); err != nil {
+		return fmt.Errorf("error updating original file '%s': %w", filePath, err)
 	}
 
 	return nil

@@ -14,6 +14,7 @@ import (
 	"github.com/robertarles/taskmasterra/v2/pkg/reminder"
 	"github.com/robertarles/taskmasterra/v2/pkg/stats"
 	"github.com/robertarles/taskmasterra/v2/pkg/task"
+	"github.com/robertarles/taskmasterra/v2/pkg/utils"
 	"github.com/robertarles/taskmasterra/v2/pkg/validator"
 )
 
@@ -51,13 +52,13 @@ func recordKeep(filePath string) error {
 	}
 
 	// Read the original file
-	content, err := os.ReadFile(expandedPath)
+	content, err := utils.ReadFileContent(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("error reading file '%s': %w", expandedPath, err)
 	}
 
 	// Validate the file and log warnings/errors
-	result := validator.ValidateFile(string(content))
+	result := validator.ValidateFile(content)
 	if result.HasErrors() || result.HasWarnings() {
 		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
 		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
@@ -66,7 +67,7 @@ func recordKeep(filePath string) error {
 		}
 	}
 
-	lines := strings.Split(string(content), "\n")
+	lines := strings.Split(content, "\n")
 	jm := journal.NewManager(expandedPath)
 	timestamp := journal.FormatTimestamp()
 
@@ -130,8 +131,8 @@ func recordKeep(filePath string) error {
 	}
 
 	// Update original file
-	if err := os.WriteFile(expandedPath, []byte(strings.Join(updatedLines, "\n")), 0644); err != nil {
-		return fmt.Errorf("error updating original file: %w", err)
+	if err := utils.WriteFileContent(expandedPath, strings.Join(updatedLines, "\n")); err != nil {
+		return fmt.Errorf("error updating original file '%s': %w", expandedPath, err)
 	}
 
 	return nil
@@ -144,13 +145,13 @@ func updateCalendar(filePath string) error {
 	}
 
 	// Read the file content for validation
-	content, err := os.ReadFile(expandedPath)
+	content, err := utils.ReadFileContent(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("error reading file '%s': %w", expandedPath, err)
 	}
 
 	// Validate the file and log warnings/errors
-	result := validator.ValidateFile(string(content))
+	result := validator.ValidateFile(content)
 	if result.HasErrors() || result.HasWarnings() {
 		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
 		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
@@ -259,12 +260,12 @@ func validateFile(filePath string) error {
 		return fmt.Errorf("error expanding file path: %w", err)
 	}
 
-	content, err := os.ReadFile(expandedPath)
+	content, err := utils.ReadFileContent(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error reading file: %w", err)
+		return fmt.Errorf("error reading file '%s': %w", expandedPath, err)
 	}
 
-	result := validator.ValidateFile(string(content))
+	result := validator.ValidateFile(content)
 	fmt.Print(validator.FormatValidationResult(result))
 
 	if result.HasErrors() {
@@ -277,12 +278,14 @@ func validateFile(filePath string) error {
 func manageConfig(configPath string, show bool, init bool) error {
 	if init {
 		cfg := config.DefaultConfig()
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid default config: %w", err)
+		}
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			return fmt.Errorf("error getting home directory: %w", err)
 		}
 		defaultConfigPath := filepath.Join(homeDir, ".taskmasterra", "config.json")
-		
 		if err := config.SaveConfig(cfg, defaultConfigPath); err != nil {
 			return fmt.Errorf("error creating config file: %w", err)
 		}
@@ -295,7 +298,9 @@ func manageConfig(configPath string, show bool, init bool) error {
 		if err != nil {
 			return fmt.Errorf("error loading config: %w", err)
 		}
-
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid config: %w", err)
+		}
 		data, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
 			return fmt.Errorf("error marshaling config: %w", err)

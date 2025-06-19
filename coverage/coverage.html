@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (50.5%)</option>
+				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (52.4%)</option>
 				
 				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (75.0%)</option>
 				
@@ -69,9 +69,9 @@
 				
 				<option value="file6">github.com/robertarles/taskmasterra/v2/pkg/task/priority.go (100.0%)</option>
 				
-				<option value="file7">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.0%)</option>
+				<option value="file7">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.6%)</option>
 				
-				<option value="file8">github.com/robertarles/taskmasterra/v2/pkg/validator/validator.go (87.5%)</option>
+				<option value="file8">github.com/robertarles/taskmasterra/v2/pkg/validator/validator.go (89.1%)</option>
 				
 				</select>
 			</div>
@@ -142,6 +142,16 @@ func recordKeep(filePath string) error <span class="cov8" title="1">{
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error reading file: %w", err)
         }</span>
+
+        // Validate the file and log warnings/errors
+        <span class="cov8" title="1">result := validator.ValidateFile(string(content))
+        if result.HasErrors() || result.HasWarnings() </span><span class="cov8" title="1">{
+                fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
+                fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
+                if result.HasErrors() </span><span class="cov0" title="0">{
+                        fmt.Fprintf(os.Stderr, "⚠️  Continuing with recordkeep despite validation errors...\n")
+                }</span>
+        }
 
         <span class="cov8" title="1">lines := strings.Split(string(content), "\n")
         jm := journal.NewManager(expandedPath)
@@ -219,6 +229,22 @@ func updateCalendar(filePath string) error <span class="cov8" title="1">{
         if err != nil </span><span class="cov0" title="0">{
                 return fmt.Errorf("error expanding file path: %w", err)
         }</span>
+
+        // Read the file content for validation
+        <span class="cov8" title="1">content, err := os.ReadFile(expandedPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error reading file: %w", err)
+        }</span>
+
+        // Validate the file and log warnings/errors
+        <span class="cov8" title="1">result := validator.ValidateFile(string(content))
+        if result.HasErrors() || result.HasWarnings() </span><span class="cov8" title="1">{
+                fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
+                fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
+                if result.HasErrors() </span><span class="cov0" title="0">{
+                        fmt.Fprintf(os.Stderr, "⚠️  Continuing with updatereminders despite validation errors...\n")
+                }</span>
+        }
 
         <span class="cov8" title="1">baseFileName := filepath.Base(expandedPath)
         listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
@@ -1107,7 +1133,14 @@ func IsActive(line string) bool <span class="cov8" title="1">{
         if !IsTask(line) </span><span class="cov8" title="1">{
                 return false
         }</span>
-        <span class="cov8" title="1">return regexp.MustCompile(`^\s*- \[.\] !! `).MatchString(line)</span>
+        // Check for the correct prefix
+        <span class="cov8" title="1">prefix := regexp.MustCompile(`^\s*- \[.\] !! `)
+        if !prefix.MatchString(line) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+        // Ensure there are no other !! in the rest of the line
+        <span class="cov8" title="1">rest := line[prefix.FindStringIndex(line)[1]:]
+        return !strings.Contains(rest, "!!")</span>
 }
 
 // IsTouched checks if a task has been touched/worked on
@@ -1371,9 +1404,23 @@ func validateTaskLine(line string, lineNum int, result *ValidationResult) <span 
                 result.AddWarning(lineNum, "Task has no title")
         }</span>
 
-        // Check for active marker
+        // Check for active marker position
         <span class="cov8" title="1">if strings.Contains(line, "!!") </span><span class="cov8" title="1">{
-                if !strings.Contains(status, " ") &amp;&amp; !strings.Contains(status, "w") &amp;&amp; !strings.Contains(status, "W") </span><span class="cov0" title="0">{
+                // Find the expected position for !! (immediately after status bracket)
+                prefixRe := regexp.MustCompile(`^\s*- \[[^\]]+\] !! `)
+                if prefixRe.MatchString(line) </span><span class="cov8" title="1">{
+                        // Ensure there are no other !! in the rest of the line
+                        idxs := prefixRe.FindStringIndex(line)
+                        if idxs != nil </span><span class="cov8" title="1">{
+                                rest := line[idxs[1]:]
+                                if strings.Contains(rest, "!!") </span><span class="cov8" title="1">{
+                                        result.AddError(lineNum, "Multiple active markers (!!) are not allowed")
+                                }</span>
+                        }
+                } else<span class="cov8" title="1"> {
+                        result.AddError(lineNum, "Active marker (!!) must come immediately after the status bracket and before any priority/effort markers")
+                }</span>
+                <span class="cov8" title="1">if !strings.Contains(status, " ") &amp;&amp; !strings.Contains(status, "w") &amp;&amp; !strings.Contains(status, "W") </span><span class="cov0" title="0">{
                         result.AddWarning(lineNum, "Active task (!!) should have empty or 'w' status")
                 }</span>
         }
@@ -1473,7 +1520,7 @@ func validateGlobal(content string, result *ValidationResult) <span class="cov8"
                 }
         }
 
-        <span class="cov8" title="1">if !hasHeader </span><span class="cov0" title="0">{
+        <span class="cov8" title="1">if !hasHeader </span><span class="cov8" title="1">{
                 result.AddInfo(1, "Consider adding a header to organize your tasks")
         }</span>
 

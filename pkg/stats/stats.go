@@ -2,12 +2,12 @@ package stats
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/robertarles/taskmasterra/v2/pkg/task"
+	"github.com/robertarles/taskmasterra/v2/pkg/utils"
 )
 
 // TaskStats contains statistics about tasks
@@ -33,13 +33,13 @@ func NewTaskStats() *TaskStats {
 
 // AnalyzeFile analyzes a markdown file and returns task statistics
 func AnalyzeFile(filePath string) (*TaskStats, error) {
-	content, err := os.ReadFile(filePath)
+	content, err := utils.ReadFileContent(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to read file '%s': %w", filePath, err)
 	}
 
 	stats := NewTaskStats()
-	lines := strings.Split(string(content), "\n")
+	lines := strings.Split(content, "\n")
 
 	for _, line := range lines {
 		if !task.IsTask(line) {
@@ -138,12 +138,12 @@ func percentage(part, total int) float64 {
 func SaveReport(report string, outputPath string) error {
 	// Ensure directory exists
 	outputDir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("failed to create output directory: %w", err)
+	if err := utils.EnsureDirectoryExists(outputDir); err != nil {
+		return fmt.Errorf("failed to create output directory '%s': %w", outputDir, err)
 	}
 
-	if err := os.WriteFile(outputPath, []byte(report), 0644); err != nil {
-		return fmt.Errorf("failed to write report: %w", err)
+	if err := utils.WriteFileContent(outputPath, report); err != nil {
+		return fmt.Errorf("failed to write report '%s': %w", outputPath, err)
 	}
 
 	return nil
