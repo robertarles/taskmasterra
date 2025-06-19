@@ -56,20 +56,20 @@ func LoadConfig(configPath string) (*Config, error) {
 		// Create default config file
 		config := DefaultConfig()
 		if err := SaveConfig(config, configPath); err != nil {
-			return config, fmt.Errorf("failed to create default config: %w", err)
+			return config, fmt.Errorf("failed to create default configuration file at '%s': %w", configPath, err)
 		}
 		return config, nil
 	}
 
-	// Read existing config
-	data, err := utils.ReadFileContent(configPath)
+	// Read existing config file
+	content, err := utils.ReadFileContent(configPath)
 	if err != nil {
-		return DefaultConfig(), fmt.Errorf("failed to read config file '%s': %w", configPath, err)
+		return nil, fmt.Errorf("failed to read configuration file '%s': %w", configPath, err)
 	}
 
 	var config Config
-	if err := json.Unmarshal([]byte(data), &config); err != nil {
-		return DefaultConfig(), fmt.Errorf("failed to parse config file: %w", err)
+	if err := json.Unmarshal([]byte(content), &config); err != nil {
+		return nil, fmt.Errorf("failed to parse configuration file '%s' as JSON: %w", configPath, err)
 	}
 
 	return &config, nil
@@ -77,19 +77,25 @@ func LoadConfig(configPath string) (*Config, error) {
 
 // SaveConfig saves configuration to file
 func SaveConfig(config *Config, configPath string) error {
+	if config == nil {
+		return fmt.Errorf("cannot save nil configuration")
+	}
+
 	// Ensure directory exists
 	configDir := filepath.Dir(configPath)
 	if err := utils.EnsureDirectoryExists(configDir); err != nil {
-		return fmt.Errorf("failed to create config directory '%s': %w", configDir, err)
+		return fmt.Errorf("failed to create configuration directory '%s': %w", configDir, err)
 	}
 
-	data, err := json.MarshalIndent(config, "", "  ")
+	// Marshal to JSON
+	configJSON, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
+		return fmt.Errorf("failed to marshal configuration to JSON: %w", err)
 	}
 
-	if err := utils.WriteFileContent(configPath, string(data)); err != nil {
-		return fmt.Errorf("failed to write config file '%s': %w", configPath, err)
+	// Write to file
+	if err := utils.WriteFileContent(configPath, string(configJSON)); err != nil {
+		return fmt.Errorf("failed to write configuration to file '%s': %w", configPath, err)
 	}
 
 	return nil

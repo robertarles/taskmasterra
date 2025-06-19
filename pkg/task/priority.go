@@ -7,6 +7,13 @@ import (
 	"strings"
 )
 
+// Precompiled regex patterns for better performance
+var (
+	priorityEffortRegex = regexp.MustCompile(`\b([A-Z])(\d+)\b`)
+	statusRegex         = regexp.MustCompile(`^\s*- \[([^\]]+)\]`)
+	titleRegex          = regexp.MustCompile(`^\s*- \[[^\]]+\]\s*(.*)`)
+)
+
 // Priority represents task priority levels
 type Priority int
 
@@ -39,8 +46,7 @@ func (p Priority) String() string {
 // ParsePriority extracts priority from task line
 func ParsePriority(line string) Priority {
 	// Look for priority markers like A1, B2, C3, etc.
-	re := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
-	matches := re.FindStringSubmatch(line)
+	matches := priorityEffortRegex.FindStringSubmatch(line)
 	if len(matches) < 3 {
 		return PriorityNone
 	}
@@ -64,8 +70,7 @@ func ParsePriority(line string) Priority {
 // ParseEffort extracts effort estimation from task line
 func ParseEffort(line string) int {
 	// Look for fibonacci effort numbers (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)
-	re := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
-	matches := re.FindStringSubmatch(line)
+	matches := priorityEffortRegex.FindStringSubmatch(line)
 	if len(matches) < 3 {
 		return 0
 	}
@@ -90,16 +95,14 @@ func ParseTaskInfo(line string) *TaskInfo {
 	}
 
 	// Extract status
-	statusRe := regexp.MustCompile(`^\s*- \[([^\]]+)\]`)
-	statusMatches := statusRe.FindStringSubmatch(line)
+	statusMatches := statusRegex.FindStringSubmatch(line)
 	status := ""
 	if len(statusMatches) > 1 {
 		status = statusMatches[1]
 	}
 
 	// Extract title (everything after the status)
-	titleRe := regexp.MustCompile(`^\s*- \[[^\]]+\]\s*(.*)`)
-	titleMatches := titleRe.FindStringSubmatch(line)
+	titleMatches := titleRegex.FindStringSubmatch(line)
 	title := ""
 	if len(titleMatches) > 1 {
 		title = strings.TrimSpace(titleMatches[1])

@@ -219,7 +219,7 @@ func TestAddReminder(t *testing.T) {
 				if tt.note != "" && !strings.Contains(script, escapeAppleScriptString(tt.note)) {
 					t.Errorf("Script doesn't contain escaped note")
 				}
-				if tt.withDueDate && !strings.Contains(script, "due date:dueDate") {
+				if tt.withDueDate && !strings.Contains(script, "due date:(current date)") {
 					t.Errorf("Script doesn't contain due date setup")
 				}
 

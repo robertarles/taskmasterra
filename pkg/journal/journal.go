@@ -40,12 +40,16 @@ func (m *Manager) WriteToJournal(entries []string) error {
 	if _, err := os.Stat(m.JournalPath); err == nil {
 		existingContent, err = utils.ReadFileContent(m.JournalPath)
 		if err != nil {
-			return fmt.Errorf("error reading journal file '%s': %w", m.JournalPath, err)
+			return fmt.Errorf("failed to read existing journal file '%s': %w", m.JournalPath, err)
 		}
 	}
 
 	newContent := strings.Join(entries, "\n") + "\n" + existingContent
-	return utils.WriteFileContent(m.JournalPath, newContent)
+	if err := utils.WriteFileContent(m.JournalPath, newContent); err != nil {
+		return fmt.Errorf("failed to write journal entries to '%s': %w", m.JournalPath, err)
+	}
+
+	return nil
 }
 
 // WriteToArchive writes entries to the archive file
@@ -58,12 +62,16 @@ func (m *Manager) WriteToArchive(entries []string) error {
 	if _, err := os.Stat(m.ArchivePath); err == nil {
 		existingContent, err = utils.ReadFileContent(m.ArchivePath)
 		if err != nil {
-			return fmt.Errorf("error reading archive file '%s': %w", m.ArchivePath, err)
+			return fmt.Errorf("failed to read existing archive file '%s': %w", m.ArchivePath, err)
 		}
 	}
 
 	newContent := strings.Join(entries, "\n") + "\n" + existingContent
-	return utils.WriteFileContent(m.ArchivePath, newContent)
+	if err := utils.WriteFileContent(m.ArchivePath, newContent); err != nil {
+		return fmt.Errorf("failed to write archive entries to '%s': %w", m.ArchivePath, err)
+	}
+
+	return nil
 }
 
 // FormatTimestamp returns a formatted UTC timestamp

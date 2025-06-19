@@ -1,7 +1,8 @@
+// Package main provides the taskmasterra CLI application for managing markdown-based todo lists.
+// It supports journaling, archiving, validation, statistics, and macOS Reminders integration.
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -10,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/robertarles/taskmasterra/v2/pkg/config"
-	"github.com/robertarles/taskmasterra/v2/pkg/journal"
 	"github.com/robertarles/taskmasterra/v2/pkg/reminder"
 	"github.com/robertarles/taskmasterra/v2/pkg/stats"
 	"github.com/robertarles/taskmasterra/v2/pkg/task"
@@ -25,6 +25,8 @@ var (
 	BuildTime = "unknown"
 )
 
+// expandPath expands environment variables and home directory shortcuts in file paths.
+// Supports ~ for home directory and $HOME environment variable.
 func expandPath(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("path cannot be empty")
@@ -32,29 +34,31 @@ func expandPath(path string) (string, error) {
 	if strings.HasPrefix(path, "~") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to get home directory for path expansion: %w", err)
 		}
 		path = filepath.Join(homeDir, path[1:])
 	} else if strings.HasPrefix(path, "$HOME") {
 		homeDir, exists := os.LookupEnv("HOME")
 		if !exists {
-			return "", fmt.Errorf("environment variable HOME not set")
+			return "", fmt.Errorf("environment variable HOME not set, cannot expand path: %s", path)
 		}
 		path = filepath.Join(homeDir, path[len("$HOME"):])
 	}
 	return path, nil
 }
 
+// recordKeep processes a todo file, moving completed tasks to archive and touched tasks to journal.
+// It validates the file first and continues processing even if validation issues are found.
 func recordKeep(filePath string) error {
 	expandedPath, err := expandPath(filePath)
 	if err != nil {
-		return fmt.Errorf("error expanding file path: %w", err)
+		return fmt.Errorf("failed to expand file path '%s': %w", filePath, err)
 	}
 
 	// Read the original file
 	content, err := utils.ReadFileContent(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error reading file '%s': %w", expandedPath, err)
+		return fmt.Errorf("failed to read file '%s': %w", expandedPath, err)
 	}
 
 	// Validate the file and log warnings/errors
@@ -63,91 +67,31 @@ func recordKeep(filePath string) error {
 		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
 		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
 		if result.HasErrors() {
-			fmt.Fprintf(os.Stderr, "⚠️  Continuing with recordkeep despite validation errors...\n")
+			fmt.Fprintf(os.Stderr, "⚠️  Continuing with recordkeep despite validation errors\n")
 		}
 	}
 
-	lines := strings.Split(content, "\n")
-	jm := journal.NewManager(expandedPath)
-	timestamp := journal.FormatTimestamp()
-
-	var journalEntries, archiveEntries, updatedLines []string
-	
-	for i := 0; i < len(lines); {
-		line := lines[i]
-		nextLine := i + 1
-
-		if task.IsTouched(line) || task.IsActive(line) {
-			entry := fmt.Sprintf("%s %s", timestamp, line)
-			journalEntries = append(journalEntries, entry)
-
-			if !task.IsCompleted(line) {
-				modifiedLine := task.ConvertActiveToTouched(line)
-				updatedLines = append(updatedLines, modifiedLine)
-			}else{
-				entry := fmt.Sprintf("%s %s", timestamp, line)
-				archiveEntries = append(archiveEntries, entry)
-			}
-
-			// Process child items
-			for j := nextLine; j < len(lines); j++ {
-				if task.IsTaskDetail(lines[j]) {
-					journalEntries = append(journalEntries, lines[j])
-					if !task.IsCompleted(line) {
-						updatedLines = append(updatedLines, lines[j])
-					}
-					nextLine = j + 1
-				} else {
-					break
-				}
-			}
-		} else if task.IsCompleted(line) {
-			entry := fmt.Sprintf("%s %s", timestamp, line)
-			archiveEntries = append(archiveEntries, entry)
-
-			// Process child items
-			for j := nextLine; j < len(lines); j++ {
-				if task.IsTaskDetail(lines[j]) {
-					archiveEntries = append(archiveEntries, lines[j])
-					nextLine = j + 1
-				} else {
-					break
-				}
-			}
-		} else {
-			updatedLines = append(updatedLines, line)
-		}
-
-		i = nextLine
+	// Process the tasks
+	if err := task.ProcessTasks(expandedPath); err != nil {
+		return fmt.Errorf("failed to process tasks in file '%s': %w", expandedPath, err)
 	}
 
-	// Write to journal and archive
-	if err := jm.WriteToJournal(journalEntries); err != nil {
-		return fmt.Errorf("error writing to journal: %w", err)
-	}
-
-	if err := jm.WriteToArchive(archiveEntries); err != nil {
-		return fmt.Errorf("error writing to archive: %w", err)
-	}
-
-	// Update original file
-	if err := utils.WriteFileContent(expandedPath, strings.Join(updatedLines, "\n")); err != nil {
-		return fmt.Errorf("error updating original file '%s': %w", expandedPath, err)
-	}
-
+	fmt.Printf("✅ Successfully processed tasks in %s\n", expandedPath)
 	return nil
 }
 
+// updateCalendar syncs active tasks from a todo file to macOS Reminders.app.
+// Only tasks marked with !! (active marker) are added to reminders.
 func updateCalendar(filePath string) error {
 	expandedPath, err := expandPath(filePath)
 	if err != nil {
-		return fmt.Errorf("error expanding file path: %w", err)
+		return fmt.Errorf("failed to expand file path '%s': %w", filePath, err)
 	}
 
 	// Read the file content for validation
 	content, err := utils.ReadFileContent(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error reading file '%s': %w", expandedPath, err)
+		return fmt.Errorf("failed to read file '%s': %w", expandedPath, err)
 	}
 
 	// Validate the file and log warnings/errors
@@ -156,104 +100,126 @@ func updateCalendar(filePath string) error {
 		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
 		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
 		if result.HasErrors() {
-			fmt.Fprintf(os.Stderr, "⚠️  Continuing with updatereminders despite validation errors...\n")
+			fmt.Fprintf(os.Stderr, "⚠️  Continuing with updatereminders despite validation errors\n")
 		}
 	}
 
-	baseFileName := filepath.Base(expandedPath)
-	listName := strings.TrimSuffix(baseFileName, filepath.Ext(baseFileName))
-
-	rs := reminder.NewService(listName)
-	if err := rs.ClearList(); err != nil {
-		return fmt.Errorf("failed to clear reminders list: %w", err)
-	}
-
-	file, err := os.Open(expandedPath)
+	// Load configuration
+	cfg, err := config.LoadConfig("")
 	if err != nil {
-		return fmt.Errorf("error opening file: %w", err)
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
-	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-	var currentTask string
-	var notes []string
-	var currentLine string
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
+	// Create reminder service
+	service := reminder.NewService(cfg.ReminderListName)
 
-		if task.IsTask(line) && !task.IsCompleted(line) {
-			// If we have a previous task, add it with its notes
-			if currentTask != "" {
-				if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil {
-					return fmt.Errorf("failed to add reminder: %w", err)
-				}
+	// Clear existing reminders
+	if err := service.ClearList(); err != nil {
+		return fmt.Errorf("failed to clear reminder list '%s': %w", cfg.ReminderListName, err)
+	}
+
+	// Read file content for processing
+	fileContent, err := utils.ReadFileContent(expandedPath)
+	if err != nil {
+		return fmt.Errorf("failed to read file '%s' for reminder processing: %w", expandedPath, err)
+	}
+
+	lines := strings.Split(fileContent, "\n")
+	activeCount := 0
+
+	for i, line := range lines {
+		lineNum := i + 1
+		if task.IsActive(line) {
+			activeCount++
+			taskInfo := task.ParseTaskInfo(line)
+			if taskInfo == nil {
+				fmt.Fprintf(os.Stderr, "⚠️  Warning: Could not parse task info on line %d: %s\n", lineNum, line)
+				continue
 			}
 
-			// Start new task
-			closingBracketIndex := strings.Index(line, "]")
-			if closingBracketIndex != -1 {
-				currentTask = strings.TrimSpace(line[closingBracketIndex+1:])
-				currentLine = line
-				notes = nil
+			// Create reminder with due date if specified
+			withDueDate := taskInfo.Priority == task.PriorityCritical || taskInfo.Priority == task.PriorityHigh
+			note := fmt.Sprintf("Priority: %s", taskInfo.Priority.String())
+			if taskInfo.Effort > 0 {
+				note += fmt.Sprintf(", Effort: %d", taskInfo.Effort)
 			}
-		} else if currentTask != "" && task.IsTaskDetail(line) {
-			// Collect notes for current task
-			notes = append(notes, line)
+
+			if err := service.AddReminder(taskInfo.Title, withDueDate, note); err != nil {
+				return fmt.Errorf("failed to add reminder for task on line %d: %w", lineNum, err)
+			}
 		}
 	}
 
-	// Add the last task if there is one
-	if currentTask != "" {
-		if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil {
-			return fmt.Errorf("failed to add reminder: %w", err)
-		}
+	if activeCount == 0 {
+		fmt.Printf("ℹ️  No active tasks found in %s\n", expandedPath)
+	} else {
+		fmt.Printf("✅ Successfully added %d active tasks to reminder list '%s'\n", activeCount, cfg.ReminderListName)
 	}
 
 	return nil
 }
 
+// printHelp displays comprehensive help information for the taskmasterra CLI.
 func printHelp() {
+	fmt.Println("Taskmasterra - Markdown-based task management with journaling and Reminders integration")
+	fmt.Println()
 	fmt.Println("Usage: taskmasterra <command> [options]")
+	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  updatereminders Update the calendar with today's tasks")
-	fmt.Println("  recordkeep    Record tasks to journal and archive files")
-	fmt.Println("  stats         Generate task statistics report")
-	fmt.Println("  validate      Validate task file format")
-	fmt.Println("  config        Manage configuration")
-	fmt.Println("  version       Show the version of taskmasterra")
-	fmt.Println("  help          Show this help message")
+	fmt.Println("  recordkeep      Process tasks: archive completed, journal touched tasks")
+	fmt.Println("                  Example: taskmasterra recordkeep -i todo.md")
+	fmt.Println()
+	fmt.Println("  updatereminders Sync active tasks (marked with !!) to macOS Reminders.app")
+	fmt.Println("                  Example: taskmasterra updatereminders -i todo.md")
+	fmt.Println()
+	fmt.Println("  stats           Generate comprehensive task statistics report")
+	fmt.Println("                  Example: taskmasterra stats -i todo.md -o report.md")
+	fmt.Println()
+	fmt.Println("  validate        Check todo file format and get improvement suggestions")
+	fmt.Println("                  Example: taskmasterra validate -i todo.md")
+	fmt.Println()
+	fmt.Println("  config          Manage application configuration")
+	fmt.Println("                  Examples:")
+	fmt.Println("                    taskmasterra config -init    # Initialize default config")
+	fmt.Println("                    taskmasterra config -show    # Show current config")
+	fmt.Println()
+	fmt.Println("  version         Show version information")
+	fmt.Println("  help            Show this help message")
+	fmt.Println()
+	fmt.Println("For more information, see: https://github.com/robertarles/taskmasterra")
 }
 
+// generateStats creates a comprehensive statistics report from a todo file.
 func generateStats(filePath string, outputPath string) error {
 	expandedPath, err := expandPath(filePath)
 	if err != nil {
-		return fmt.Errorf("error expanding file path: %w", err)
+		return fmt.Errorf("failed to expand file path '%s': %w", filePath, err)
 	}
 
+	// Analyze the file
 	statsData, err := stats.AnalyzeFile(expandedPath)
 	if err != nil {
-		return fmt.Errorf("error analyzing file: %w", err)
+		return fmt.Errorf("failed to analyze file '%s': %w", expandedPath, err)
 	}
 
+	// Generate report
 	report := stats.GenerateReport(statsData)
 
-	if outputPath != "" {
-		expandedOutputPath, err := expandPath(outputPath)
-		if err != nil {
-			return fmt.Errorf("error expanding output path: %w", err)
-		}
-		if err := stats.SaveReport(report, expandedOutputPath); err != nil {
-			return fmt.Errorf("error saving report: %w", err)
-		}
-		fmt.Printf("Statistics report saved to: %s\n", expandedOutputPath)
-	} else {
-		fmt.Println(report)
+	// Save report
+	if err := stats.SaveReport(report, outputPath); err != nil {
+		return fmt.Errorf("failed to save report to '%s': %w", outputPath, err)
 	}
 
+	fmt.Printf("✅ Statistics report generated and saved to: %s\n", outputPath)
 	return nil
 }
 
+// validateFile validates a todo file and displays any issues found.
 func validateFile(filePath string) error {
 	expandedPath, err := expandPath(filePath)
 	if err != nil {
@@ -275,44 +241,113 @@ func validateFile(filePath string) error {
 	return nil
 }
 
+// manageConfig handles configuration file operations (initialize, show).
 func manageConfig(configPath string, show bool, init bool) error {
 	if init {
 		cfg := config.DefaultConfig()
 		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("invalid default config: %w", err)
+			return fmt.Errorf("default configuration is invalid: %w", err)
 		}
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return fmt.Errorf("error getting home directory: %w", err)
+			return fmt.Errorf("failed to get home directory for config initialization: %w", err)
 		}
 		defaultConfigPath := filepath.Join(homeDir, ".taskmasterra", "config.json")
 		if err := config.SaveConfig(cfg, defaultConfigPath); err != nil {
-			return fmt.Errorf("error creating config file: %w", err)
+			return fmt.Errorf("failed to create configuration file at '%s': %w", defaultConfigPath, err)
 		}
-		fmt.Printf("Configuration file created at: %s\n", defaultConfigPath)
+		fmt.Printf("✅ Configuration file created at: %s\n", defaultConfigPath)
 		return nil
 	}
 
 	if show {
 		cfg, err := config.LoadConfig(configPath)
 		if err != nil {
-			return fmt.Errorf("error loading config: %w", err)
+			return fmt.Errorf("failed to load configuration from '%s': %w", configPath, err)
 		}
+
+		// Validate configuration
 		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("invalid config: %w", err)
+			return fmt.Errorf("configuration validation failed: %w", err)
 		}
-		data, err := json.MarshalIndent(cfg, "", "  ")
+
+		configJSON, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
-			return fmt.Errorf("error marshaling config: %w", err)
+			return fmt.Errorf("failed to marshal configuration to JSON: %w", err)
 		}
-		fmt.Println(string(data))
+		fmt.Println(string(configJSON))
 		return nil
 	}
 
-	return nil
+	return fmt.Errorf("no action specified for config command")
+}
+
+// suggestCommand returns the closest matching command for a given input.
+func suggestCommand(input string, commands []string) string {
+	input = strings.ToLower(input)
+	minDist := 100
+	closest := ""
+	for _, cmd := range commands {
+		dist := levenshtein(input, cmd)
+		if dist < minDist {
+			minDist = dist
+			closest = cmd
+		}
+	}
+	if minDist <= 3 && closest != "" {
+		return closest
+	}
+	return ""
+}
+
+// levenshtein computes the Levenshtein distance between two strings.
+func levenshtein(a, b string) int {
+	la, lb := len(a), len(b)
+	if la == 0 {
+		return lb
+	}
+	if lb == 0 {
+		return la
+	}
+	dp := make([][]int, la+1)
+	for i := range dp {
+		dp[i] = make([]int, lb+1)
+	}
+	for i := 0; i <= la; i++ {
+		dp[i][0] = i
+	}
+	for j := 0; j <= lb; j++ {
+		dp[0][j] = j
+	}
+	for i := 1; i <= la; i++ {
+		for j := 1; j <= lb; j++ {
+			cost := 0
+			if a[i-1] != b[j-1] {
+				cost = 1
+			}
+			dp[i][j] = min(
+				dp[i-1][j]+1,
+				dp[i][j-1]+1,
+				dp[i-1][j-1]+cost,
+			)
+		}
+	}
+	return dp[la][lb]
+}
+
+func min(a, b, c int) int {
+	if a < b && a < c {
+		return a
+	}
+	if b < c {
+		return b
+	}
+	return c
 }
 
 func main() {
+	validCommands := []string{"updatereminders", "updatecal", "recordkeep", "stats", "validate", "config", "version", "help"}
+
 	if len(os.Args) < 2 {
 		printHelp()
 		return
@@ -324,17 +359,21 @@ func main() {
 	case "updatereminders", "updatecal":
 		updateCalCmd := flag.NewFlagSet("updatereminders", flag.ExitOnError)
 		inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
+		updateCalCmd.Usage = func() {
+			fmt.Println("\nUsage: taskmasterra updatereminders -i <inputfile>")
+			fmt.Println("Sync active tasks (marked with !!) to macOS Reminders.app")
+			updateCalCmd.PrintDefaults()
+		}
 		if err := updateCalCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
+			updateCalCmd.Usage()
 			os.Exit(1)
 		}
-
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for updatereminders command. Use -i to specify the path.")
 			updateCalCmd.Usage()
 			return
 		}
-
 		if err := updateCalendar(*inputFilePath); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
@@ -343,17 +382,21 @@ func main() {
 	case "recordkeep":
 		recordKeepCmd := flag.NewFlagSet("recordkeep", flag.ExitOnError)
 		inputFilePath := recordKeepCmd.String("i", "", "Path to the markdown input file")
+		recordKeepCmd.Usage = func() {
+			fmt.Println("\nUsage: taskmasterra recordkeep -i <inputfile>")
+			fmt.Println("Process tasks: archive completed, journal touched tasks")
+			recordKeepCmd.PrintDefaults()
+		}
 		if err := recordKeepCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
+			recordKeepCmd.Usage()
 			os.Exit(1)
 		}
-
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for recordkeep command. Use -i to specify the path.")
 			recordKeepCmd.Usage()
 			return
 		}
-
 		if err := recordKeep(*inputFilePath); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
@@ -363,17 +406,21 @@ func main() {
 		statsCmd := flag.NewFlagSet("stats", flag.ExitOnError)
 		inputFilePath := statsCmd.String("i", "", "Path to the markdown input file")
 		outputFilePath := statsCmd.String("o", "", "Path to the output statistics report file")
+		statsCmd.Usage = func() {
+			fmt.Println("\nUsage: taskmasterra stats -i <inputfile> -o <outputfile>")
+			fmt.Println("Generate comprehensive task statistics report")
+			statsCmd.PrintDefaults()
+		}
 		if err := statsCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
+			statsCmd.Usage()
 			os.Exit(1)
 		}
-
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for stats command. Use -i to specify the path.")
 			statsCmd.Usage()
 			return
 		}
-
 		if err := generateStats(*inputFilePath, *outputFilePath); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
@@ -382,17 +429,21 @@ func main() {
 	case "validate":
 		validateCmd := flag.NewFlagSet("validate", flag.ExitOnError)
 		inputFilePath := validateCmd.String("i", "", "Path to the markdown input file")
+		validateCmd.Usage = func() {
+			fmt.Println("\nUsage: taskmasterra validate -i <inputfile>")
+			fmt.Println("Check todo file format and get improvement suggestions")
+			validateCmd.PrintDefaults()
+		}
 		if err := validateCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
+			validateCmd.Usage()
 			os.Exit(1)
 		}
-
 		if *inputFilePath == "" {
 			fmt.Println("Error: Input file path is required for validate command. Use -i to specify the path.")
 			validateCmd.Usage()
 			return
 		}
-
 		if err := validateFile(*inputFilePath); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
@@ -403,17 +454,21 @@ func main() {
 		configFilePath := configCmd.String("c", "", "Path to the configuration file")
 		show := configCmd.Bool("show", false, "Show the configuration")
 		init := configCmd.Bool("init", false, "Initialize a new configuration")
+		configCmd.Usage = func() {
+			fmt.Println("\nUsage: taskmasterra config -init | -show [-c <configfile>]")
+			fmt.Println("Manage application configuration")
+			configCmd.PrintDefaults()
+		}
 		if err := configCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
+			configCmd.Usage()
 			os.Exit(1)
 		}
-
 		if *init && *show {
 			fmt.Println("Error: Cannot use both -init and -show flags together")
 			configCmd.Usage()
 			return
 		}
-
 		if err := manageConfig(*configFilePath, *show, *init); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
@@ -423,7 +478,17 @@ func main() {
 		fmt.Println(getVersionString())
 		return
 
-	default:
+	case "help":
 		printHelp()
+		return
+
+	default:
+		fmt.Fprintf(os.Stderr, "Error: Unknown command '%s'.\n", command)
+		suggestion := suggestCommand(command, validCommands)
+		if suggestion != "" {
+			fmt.Fprintf(os.Stderr, "Did you mean '%s'?\n", suggestion)
+		}
+		printHelp()
+		os.Exit(1)
 	}
 } 

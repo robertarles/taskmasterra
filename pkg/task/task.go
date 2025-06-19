@@ -1,3 +1,5 @@
+// Package task provides functionality for parsing, processing, and managing markdown-based todo tasks.
+// It supports task status detection, priority parsing, effort estimation, and task lifecycle management.
 package task
 
 import (
@@ -9,66 +11,91 @@ import (
 	"github.com/robertarles/taskmasterra/v2/pkg/utils"
 )
 
-// Task represents a task item with its status and details
+// Precompiled regex patterns for better performance
+var (
+	completedTaskRegex = regexp.MustCompile(`^\s*- \[[Xx]\]`)
+	activeTaskRegex    = regexp.MustCompile(`^\s*- \[.\] !! `)
+	touchedTaskRegex   = regexp.MustCompile(`(^- \[[BWX]\]|^\s+- \[[BWX]\])`)
+	taskRegex          = regexp.MustCompile(`^- \[`)
+	subTaskRegex       = regexp.MustCompile(`^[ \t]+- \[`)
+	taskDetailRegex    = regexp.MustCompile(`^[ \t]+- `)
+)
+
+// Task represents a task item with its status and details.
+// This is a simple wrapper around the raw line content.
 type Task struct {
 	Line string
 }
 
-// IsCompleted checks if a task is marked as completed
+// IsCompleted checks if a task is marked as completed.
+// Returns true if the line represents a task with [x] or [X] status.
 func IsCompleted(line string) bool {
 	if !IsTask(line) {
 		return false
 	}
-	return regexp.MustCompile(`^\s*- \[[Xx]\]`).MatchString(line)
+	return completedTaskRegex.MatchString(line)
 }
 
-// IsActive checks if a task is marked as active (needs attention today)
+// IsActive checks if a task is marked as active (needs attention today).
+// A task is active if it has the !! marker immediately after the status bracket.
+// Returns false if there are multiple !! markers in the line.
 func IsActive(line string) bool {
 	if !IsTask(line) {
 		return false
 	}
 	// Check for the correct prefix
-	prefix := regexp.MustCompile(`^\s*- \[.\] !! `)
-	if !prefix.MatchString(line) {
+	if !activeTaskRegex.MatchString(line) {
 		return false
 	}
 	// Ensure there are no other !! in the rest of the line
-	rest := line[prefix.FindStringIndex(line)[1]:]
+	idxs := activeTaskRegex.FindStringIndex(line)
+	if idxs == nil {
+		return false
+	}
+	rest := line[idxs[1]:]
 	return !strings.Contains(rest, "!!")
 }
 
-// IsTouched checks if a task has been touched/worked on
+// IsTouched checks if a task has been touched/worked on.
+// A task is touched if it has uppercase status markers [B], [W], or [X].
 func IsTouched(line string) bool {
 	if !IsTask(line) && !IsSubTask(line) {
 		return false
 	}
-	return regexp.MustCompile(`(^- \[[BWX]\]|^\s+- \[[BWX]\])`).MatchString(line)
+	return touchedTaskRegex.MatchString(line)
 }
 
-// IsTask checks if a line represents a task
+// IsTask checks if a line represents a task.
+// Returns true if the line starts with "- [" (task list item).
 func IsTask(line string) bool {
-	return regexp.MustCompile(`^- \[`).MatchString(line)
+	return taskRegex.MatchString(line)
 }
 
-// IsSubTask checks if a line represents a subtask
+// IsSubTask checks if a line represents a subtask.
+// Returns true if the line is indented and starts with "- [".
 func IsSubTask(line string) bool {
-	return regexp.MustCompile(`^[ \t]+- \[`).MatchString(line)
+	return subTaskRegex.MatchString(line)
 }
 
-// IsTaskDetail checks if a line is an indented detail line
+// IsTaskDetail checks if a line is an indented detail line.
+// Returns true if the line is indented and starts with "- " (not a task).
 func IsTaskDetail(line string) bool {
-	return regexp.MustCompile(`^[ \t]+- `).MatchString(line)
+	return taskDetailRegex.MatchString(line)
 }
 
-// ReplaceStatus replaces the task status marker
+// ReplaceStatus replaces the task status marker in a line.
+// Creates a new regex pattern for the specific marker and performs the replacement.
 func ReplaceStatus(line string, oldMarker, newMarker rune) string {
-	if regexp.MustCompile(`- \[` + string(oldMarker) + `\]`).MatchString(line) {
-		return regexp.MustCompile(`- \[` + string(oldMarker) + `\]`).ReplaceAllString(line, "- [" + string(newMarker) + "]")
+	// Create regex pattern for the specific marker
+	oldPattern := regexp.MustCompile(`- \[` + string(oldMarker) + `\]`)
+	if oldPattern.MatchString(line) {
+		return oldPattern.ReplaceAllString(line, "- [" + string(newMarker) + "]")
 	}
 	return line
 }
 
-// ConvertActiveToTouched converts active task status to touched status
+// ConvertActiveToTouched converts active task status to touched status.
+// Converts uppercase status markers (B, W, X) to lowercase (b, w, x).
 func ConvertActiveToTouched(line string) string {
 	line = ReplaceStatus(line, 'B', 'b')
 	line = ReplaceStatus(line, 'W', 'w')
@@ -76,12 +103,18 @@ func ConvertActiveToTouched(line string) string {
 	return line
 }
 
-// ProcessTasks processes a todo file, moving completed tasks to archive and touched tasks to journal
+// ProcessTasks processes a todo file, moving completed tasks to archive and touched tasks to journal.
+// This is the main workflow function that:
+// - Reads the todo file
+// - Processes each task line
+// - Moves completed tasks to archive with timestamps
+// - Moves touched/active tasks to journal with timestamps
+// - Updates the original file with converted status markers
 func ProcessTasks(filePath string) error {
 	// Read the original file
 	content, err := utils.ReadFileContent(filePath)
 	if err != nil {
-		return fmt.Errorf("error reading file '%s': %w", filePath, err)
+		return fmt.Errorf("failed to read file '%s': %w", filePath, err)
 	}
 
 	lines := strings.Split(content, "\n")
@@ -102,7 +135,8 @@ func ProcessTasks(filePath string) error {
 				modifiedLine := ConvertActiveToTouched(line)
 				updatedLines = append(updatedLines, modifiedLine)
 			} else {
-				archiveEntries = append(archiveEntries, line)
+				// Archive parent line with timestamp
+				archiveEntries = append(archiveEntries, fmt.Sprintf("%s %s", timestamp, line))
 			}
 
 			// Process child items
@@ -118,13 +152,14 @@ func ProcessTasks(filePath string) error {
 				}
 			}
 		} else if IsCompleted(line) {
-			entry := fmt.Sprintf("%s %s", timestamp, line)
-			archiveEntries = append(archiveEntries, entry)
+			// Archive parent line with timestamp
+			archiveEntries = append(archiveEntries, fmt.Sprintf("%s %s", timestamp, line))
 
 			// Process child items
 			for j := nextLine; j < len(lines); j++ {
 				if IsTaskDetail(lines[j]) {
-					archiveEntries = append(archiveEntries, lines[j])
+					// Archive child detail line with timestamp
+					archiveEntries = append(archiveEntries, fmt.Sprintf("%s %s", timestamp, lines[j]))
 					nextLine = j + 1
 				} else {
 					break
@@ -139,16 +174,16 @@ func ProcessTasks(filePath string) error {
 
 	// Write to journal and archive
 	if err := jm.WriteToJournal(journalEntries); err != nil {
-		return fmt.Errorf("error writing to journal: %w", err)
+		return fmt.Errorf("failed to write journal entries for file '%s': %w", filePath, err)
 	}
 
 	if err := jm.WriteToArchive(archiveEntries); err != nil {
-		return fmt.Errorf("error writing to archive: %w", err)
+		return fmt.Errorf("failed to write archive entries for file '%s': %w", filePath, err)
 	}
 
 	// Update original file
 	if err := utils.WriteFileContent(filePath, strings.Join(updatedLines, "\n")); err != nil {
-		return fmt.Errorf("error updating original file '%s': %w", filePath, err)
+		return fmt.Errorf("failed to update original file '%s': %w", filePath, err)
 	}
 
 	return nil

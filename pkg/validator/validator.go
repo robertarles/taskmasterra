@@ -1,3 +1,6 @@
+// Package validator provides functionality for validating markdown-based todo files.
+// It checks task syntax, priority/effort formats, active marker positioning, and provides
+// helpful suggestions for improving task organization and formatting.
 package validator
 
 import (
@@ -6,14 +9,23 @@ import (
 	"strings"
 )
 
-// ValidationError represents a validation error
+// Precompiled regex patterns for better performance
+var (
+	taskLineRegex      = regexp.MustCompile(`^\s*- \[([^\]]+)\]\s*(.*)`)
+	activeMarkerRegex  = regexp.MustCompile(`^\s*- \[[^\]]+\] !! `)
+	priorityEffortRegex = regexp.MustCompile(`\b([A-Z])(\d+)\b`)
+	headerRegex        = regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
+)
+
+// ValidationError represents a validation error with line number, message, and severity level.
 type ValidationError struct {
 	Line    int
 	Message string
 	Level   ErrorLevel
 }
 
-// ErrorLevel represents the severity of a validation error
+// ErrorLevel represents the severity of a validation error.
+// INFO = suggestions, WARNING = potential issues, ERROR = must fix.
 type ErrorLevel int
 
 const (
@@ -22,7 +34,7 @@ const (
 	LevelError
 )
 
-// String returns the string representation of error level
+// String returns the string representation of error level.
 func (l ErrorLevel) String() string {
 	switch l {
 	case LevelInfo:
@@ -36,14 +48,15 @@ func (l ErrorLevel) String() string {
 	}
 }
 
-// ValidationResult contains validation results
+// ValidationResult contains validation results organized by severity level.
+// Errors must be fixed, warnings should be addressed, and info provides suggestions.
 type ValidationResult struct {
 	Errors   []ValidationError
 	Warnings []ValidationError
 	Info     []ValidationError
 }
 
-// NewValidationResult creates a new validation result
+// NewValidationResult creates a new validation result with empty slices.
 func NewValidationResult() *ValidationResult {
 	return &ValidationResult{
 		Errors:   []ValidationError{},
@@ -52,32 +65,37 @@ func NewValidationResult() *ValidationResult {
 	}
 }
 
-// AddError adds an error to the validation result
+// AddError adds an error to the validation result.
+// Errors indicate issues that must be fixed for proper functionality.
 func (r *ValidationResult) AddError(line int, message string) {
 	r.Errors = append(r.Errors, ValidationError{Line: line, Message: message, Level: LevelError})
 }
 
-// AddWarning adds a warning to the validation result
+// AddWarning adds a warning to the validation result.
+// Warnings indicate potential issues that should be addressed.
 func (r *ValidationResult) AddWarning(line int, message string) {
 	r.Warnings = append(r.Warnings, ValidationError{Line: line, Message: message, Level: LevelWarning})
 }
 
-// AddInfo adds an info message to the validation result
+// AddInfo adds an info message to the validation result.
+// Info messages provide suggestions for improvement.
 func (r *ValidationResult) AddInfo(line int, message string) {
 	r.Info = append(r.Info, ValidationError{Line: line, Message: message, Level: LevelInfo})
 }
 
-// HasErrors returns true if there are any errors
+// HasErrors returns true if there are any errors.
 func (r *ValidationResult) HasErrors() bool {
 	return len(r.Errors) > 0
 }
 
-// HasWarnings returns true if there are any warnings
+// HasWarnings returns true if there are any warnings.
 func (r *ValidationResult) HasWarnings() bool {
 	return len(r.Warnings) > 0
 }
 
-// ValidateFile validates a markdown task file
+// ValidateFile validates a markdown task file and returns validation results.
+// This is the main entry point for file validation. It processes each line and
+// performs both line-specific and global validations.
 func ValidateFile(content string) *ValidationResult {
 	result := NewValidationResult()
 	lines := strings.Split(content, "\n")
@@ -93,7 +111,8 @@ func ValidateFile(content string) *ValidationResult {
 	return result
 }
 
-// validateLine validates a single line
+// validateLine validates a single line based on its type.
+// Routes to appropriate validation functions based on line content.
 func validateLine(line string, lineNum int, result *ValidationResult) {
 	// Skip empty lines
 	if strings.TrimSpace(line) == "" {
@@ -110,11 +129,11 @@ func validateLine(line string, lineNum int, result *ValidationResult) {
 	}
 }
 
-// validateTaskLine validates a task line
+// validateTaskLine validates a task line for proper format and content.
+// Checks status validity, active marker positioning, priority/effort format, and more.
 func validateTaskLine(line string, lineNum int, result *ValidationResult) {
 	// Check for valid task status format
-	taskRe := regexp.MustCompile(`^\s*- \[([^\]]+)\]\s*(.*)`)
-	matches := taskRe.FindStringSubmatch(line)
+	matches := taskLineRegex.FindStringSubmatch(line)
 	if len(matches) < 3 {
 		result.AddError(lineNum, "Invalid task format")
 		return
@@ -145,10 +164,9 @@ func validateTaskLine(line string, lineNum int, result *ValidationResult) {
 	// Check for active marker position
 	if strings.Contains(line, "!!") {
 		// Find the expected position for !! (immediately after status bracket)
-		prefixRe := regexp.MustCompile(`^\s*- \[[^\]]+\] !! `)
-		if prefixRe.MatchString(line) {
+		if activeMarkerRegex.MatchString(line) {
 			// Ensure there are no other !! in the rest of the line
-			idxs := prefixRe.FindStringIndex(line)
+			idxs := activeMarkerRegex.FindStringIndex(line)
 			if idxs != nil {
 				rest := line[idxs[1]:]
 				if strings.Contains(rest, "!!") {
@@ -164,8 +182,7 @@ func validateTaskLine(line string, lineNum int, result *ValidationResult) {
 	}
 
 	// Check for priority and effort format
-	priorityRe := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
-	priorityMatches := priorityRe.FindStringSubmatch(line)
+	priorityMatches := priorityEffortRegex.FindStringSubmatch(line)
 	if len(priorityMatches) >= 3 {
 		priority := priorityMatches[1]
 		effort := priorityMatches[2]
@@ -200,11 +217,11 @@ func validateTaskLine(line string, lineNum int, result *ValidationResult) {
 	}
 }
 
-// validateHeaderLine validates a header line
+// validateHeaderLine validates a header line for proper markdown format.
+// Checks header level, title presence, and provides organization suggestions.
 func validateHeaderLine(line string, lineNum int, result *ValidationResult) {
 	// Check for proper header format
-	headerRe := regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
-	matches := headerRe.FindStringSubmatch(line)
+	matches := headerRegex.FindStringSubmatch(line)
 	if len(matches) < 3 {
 		result.AddWarning(lineNum, "Invalid header format")
 		return
@@ -222,7 +239,8 @@ func validateHeaderLine(line string, lineNum int, result *ValidationResult) {
 	}
 }
 
-// validateDetailLine validates a detail line
+// validateDetailLine validates a detail line for proper indentation and content.
+// Checks that detail lines are properly indented and have content.
 func validateDetailLine(line string, lineNum int, result *ValidationResult) {
 	// Check for proper indentation
 	if !strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "\t") {
@@ -236,42 +254,45 @@ func validateDetailLine(line string, lineNum int, result *ValidationResult) {
 	}
 }
 
-// validateGlobal performs global validations
+// validateGlobal performs global validations across the entire file content.
+// Checks for overall file structure, task presence, and provides general suggestions.
 func validateGlobal(content string, result *ValidationResult) {
 	lines := strings.Split(content, "\n")
-
-	// Check for file structure
-	hasHeader := false
-	taskCount := 0
-	completedCount := 0
-
+	
+	// Check for tasks
+	hasTasks := false
+	allCompleted := true
+	hasHeaders := false
+	
 	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "#") {
-			hasHeader = true
-		}
-		if strings.HasPrefix(trimmed, "- [") {
-			taskCount++
-			if strings.Contains(trimmed, "[x]") || strings.Contains(trimmed, "[X]") {
-				completedCount++
+		trimmedLine := strings.TrimSpace(line)
+		
+		if strings.HasPrefix(trimmedLine, "- [") {
+			hasTasks = true
+			if !strings.Contains(trimmedLine, "[x]") && !strings.Contains(trimmedLine, "[X]") {
+				allCompleted = false
 			}
+		} else if strings.HasPrefix(trimmedLine, "#") {
+			hasHeaders = true
 		}
 	}
-
-	if !hasHeader {
-		result.AddInfo(1, "Consider adding a header to organize your tasks")
-	}
-
-	if taskCount == 0 {
+	
+	// Add global suggestions
+	if !hasTasks {
 		result.AddWarning(1, "No tasks found in file")
 	}
-
-	if taskCount > 0 && completedCount == taskCount {
+	
+	if !hasHeaders {
+		result.AddInfo(1, "Consider adding a header to organize your tasks")
+	}
+	
+	if hasTasks && allCompleted {
 		result.AddInfo(1, "All tasks are completed - consider archiving or creating new tasks")
 	}
 }
 
-// FormatValidationResult formats validation results for display
+// FormatValidationResult formats validation results for display.
+// Returns a user-friendly string representation of all validation issues found.
 func FormatValidationResult(result *ValidationResult) string {
 	var output strings.Builder
 
@@ -280,25 +301,23 @@ func FormatValidationResult(result *ValidationResult) string {
 		return output.String()
 	}
 
-	// Print errors
+	// Format errors
 	if len(result.Errors) > 0 {
 		output.WriteString(fmt.Sprintf("❌ %d errors:\n", len(result.Errors)))
 		for _, err := range result.Errors {
 			output.WriteString(fmt.Sprintf("  Line %d: %s\n", err.Line, err.Message))
 		}
-		output.WriteString("\n")
 	}
 
-	// Print warnings
+	// Format warnings
 	if len(result.Warnings) > 0 {
 		output.WriteString(fmt.Sprintf("⚠️  %d warnings:\n", len(result.Warnings)))
 		for _, warning := range result.Warnings {
 			output.WriteString(fmt.Sprintf("  Line %d: %s\n", warning.Line, warning.Message))
 		}
-		output.WriteString("\n")
 	}
 
-	// Print info
+	// Format info messages
 	if len(result.Info) > 0 {
 		output.WriteString(fmt.Sprintf("ℹ️  %d suggestions:\n", len(result.Info)))
 		for _, info := range result.Info {
