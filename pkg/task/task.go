@@ -27,7 +27,14 @@ func IsActive(line string) bool {
 	if !IsTask(line) {
 		return false
 	}
-	return regexp.MustCompile(`^\s*- \[.\] !! `).MatchString(line)
+	// Check for the correct prefix
+	prefix := regexp.MustCompile(`^\s*- \[.\] !! `)
+	if !prefix.MatchString(line) {
+		return false
+	}
+	// Ensure there are no other !! in the rest of the line
+	rest := line[prefix.FindStringIndex(line)[1]:]
+	return !strings.Contains(rest, "!!")
 }
 
 // IsTouched checks if a task has been touched/worked on

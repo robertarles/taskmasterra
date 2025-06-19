@@ -142,8 +142,22 @@ func validateTaskLine(line string, lineNum int, result *ValidationResult) {
 		result.AddWarning(lineNum, "Task has no title")
 	}
 
-	// Check for active marker
+	// Check for active marker position
 	if strings.Contains(line, "!!") {
+		// Find the expected position for !! (immediately after status bracket)
+		prefixRe := regexp.MustCompile(`^\s*- \[[^\]]+\] !! `)
+		if prefixRe.MatchString(line) {
+			// Ensure there are no other !! in the rest of the line
+			idxs := prefixRe.FindStringIndex(line)
+			if idxs != nil {
+				rest := line[idxs[1]:]
+				if strings.Contains(rest, "!!") {
+					result.AddError(lineNum, "Multiple active markers (!!) are not allowed")
+				}
+			}
+		} else {
+			result.AddError(lineNum, "Active marker (!!) must come immediately after the status bracket and before any priority/effort markers")
+		}
 		if !strings.Contains(status, " ") && !strings.Contains(status, "w") && !strings.Contains(status, "W") {
 			result.AddWarning(lineNum, "Active task (!!) should have empty or 'w' status")
 		}

@@ -119,7 +119,7 @@ func TestValidateFile(t *testing.T) {
 		{
 			name: "Valid file",
 			content: `# Test TODO
-- [ ] A1 !! Valid task with priority and effort
+- [ ] !! A1 Valid task with priority and effort
 - [w] B2 Worked task
 - [x] C3 Completed task
 `,
@@ -256,6 +256,50 @@ func TestErrorLevel_String(t *testing.T) {
 			result := tt.level.String()
 			if result != tt.expected {
 				t.Errorf("ErrorLevel.String() = %s, want %s", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestValidateActiveMarkerPosition(t *testing.T) {
+	cases := []struct {
+		name     string
+		line     string
+		hasError bool
+	}{
+		{
+			name:     "Correct position: !! after status",
+			line:     "- [ ] !! A1 Task with priority",
+			hasError: false,
+		},
+		{
+			name:     "Incorrect position: !! after priority",
+			line:     "- [ ] A1 !! Task with priority",
+			hasError: true,
+		},
+		{
+			name:     "Incorrect position: !! at end",
+			line:     "- [ ] A1 Task with priority !!",
+			hasError: true,
+		},
+		{
+			name:     "Multiple !! markers",
+			line:     "- [ ] !! Task !! A1",
+			hasError: true,
+		},
+		{
+			name:     "No active marker",
+			line:     "- [ ] A1 Task with priority",
+			hasError: false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result := ValidateFile(c.line)
+			hasErr := result.HasErrors()
+			if hasErr != c.hasError {
+				t.Errorf("ValidateFile(%q) error = %v, want %v", c.line, hasErr, c.hasError)
 			}
 		})
 	}

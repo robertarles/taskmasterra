@@ -56,6 +56,16 @@ func recordKeep(filePath string) error {
 		return fmt.Errorf("error reading file: %w", err)
 	}
 
+	// Validate the file and log warnings/errors
+	result := validator.ValidateFile(string(content))
+	if result.HasErrors() || result.HasWarnings() {
+		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
+		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
+		if result.HasErrors() {
+			fmt.Fprintf(os.Stderr, "⚠️  Continuing with recordkeep despite validation errors...\n")
+		}
+	}
+
 	lines := strings.Split(string(content), "\n")
 	jm := journal.NewManager(expandedPath)
 	timestamp := journal.FormatTimestamp()
@@ -131,6 +141,22 @@ func updateCalendar(filePath string) error {
 	expandedPath, err := expandPath(filePath)
 	if err != nil {
 		return fmt.Errorf("error expanding file path: %w", err)
+	}
+
+	// Read the file content for validation
+	content, err := os.ReadFile(expandedPath)
+	if err != nil {
+		return fmt.Errorf("error reading file: %w", err)
+	}
+
+	// Validate the file and log warnings/errors
+	result := validator.ValidateFile(string(content))
+	if result.HasErrors() || result.HasWarnings() {
+		fmt.Fprintf(os.Stderr, "⚠️  Validation issues found in %s:\n", expandedPath)
+		fmt.Fprint(os.Stderr, validator.FormatValidationResult(result))
+		if result.HasErrors() {
+			fmt.Fprintf(os.Stderr, "⚠️  Continuing with updatereminders despite validation errors...\n")
+		}
 	}
 
 	baseFileName := filepath.Base(expandedPath)

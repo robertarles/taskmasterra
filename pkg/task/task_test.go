@@ -200,11 +200,105 @@ func TestIsTaskDetailAndIsSubTask(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := IsTaskDetail(tt.line); got != tt.isDetail {
-			t.Errorf("IsTaskDetail(%q) = %v, want %v", tt.line, got, tt.isDetail)
-		}
-		if got := IsSubTask(tt.line); got != tt.isSubTask {
-			t.Errorf("IsSubTask(%q) = %v, want %v", tt.line, got, tt.isSubTask)
-		}
+		t.Run(tt.line, func(t *testing.T) {
+			if got := IsTaskDetail(tt.line); got != tt.isDetail {
+				t.Errorf("IsTaskDetail() = %v, want %v for %v", got, tt.isDetail, tt.line)
+			}
+			if got := IsSubTask(tt.line); got != tt.isSubTask {
+				t.Errorf("IsSubTask() = %v, want %v for %v", got, tt.isSubTask, tt.line)
+			}
+		})
+	}
+}
+
+func TestActiveMarkerPosition(t *testing.T) {
+	tests := []struct {
+		name        string
+		line        string
+		shouldBeActive bool
+		description string
+	}{
+		{
+			name:        "Correct order: !! before priority",
+			line:        "- [ ] !! A1 Task with priority",
+			shouldBeActive: true,
+			description: "!! should come before priority marker A1",
+		},
+		{
+			name:        "Correct order: !! before effort",
+			line:        "- [ ] !! B2 Task with effort",
+			shouldBeActive: true,
+			description: "!! should come before effort marker B2",
+		},
+		{
+			name:        "Correct order: !! before priority and effort",
+			line:        "- [ ] !! A3 Task with priority and effort",
+			shouldBeActive: true,
+			description: "!! should come before priority marker A3",
+		},
+		{
+			name:        "Incorrect order: priority before !!",
+			line:        "- [ ] A1 !! Task with priority first",
+			shouldBeActive: false,
+			description: "!! should not come after priority marker A1",
+		},
+		{
+			name:        "Incorrect order: effort before !!",
+			line:        "- [ ] B2 !! Task with effort first",
+			shouldBeActive: false,
+			description: "!! should not come after effort marker B2",
+		},
+		{
+			name:        "Incorrect order: priority and effort before !!",
+			line:        "- [ ] A3 !! Task with priority and effort first",
+			shouldBeActive: false,
+			description: "!! should not come after priority marker A3",
+		},
+		{
+			name:        "No active marker",
+			line:        "- [ ] A1 Task without active marker",
+			shouldBeActive: false,
+			description: "Task without !! should not be active",
+		},
+		{
+			name:        "Active marker in middle",
+			line:        "- [ ] Task !! in middle A1",
+			shouldBeActive: false,
+			description: "!! should not be in the middle of the task",
+		},
+		{
+			name:        "Active marker at end",
+			line:        "- [ ] Task A1 !!",
+			shouldBeActive: false,
+			description: "!! should not be at the end of the task",
+		},
+		{
+			name:        "Multiple active markers",
+			line:        "- [ ] !! Task !! A1",
+			shouldBeActive: false,
+			description: "Multiple !! markers should not be allowed",
+		},
+		{
+			name:        "Active marker with lowercase status",
+			line:        "- [w] !! A1 Task with lowercase status",
+			shouldBeActive: true,
+			description: "!! should work with lowercase status",
+		},
+		{
+			name:        "Active marker with uppercase status",
+			line:        "- [W] !! A1 Task with uppercase status",
+			shouldBeActive: true,
+			description: "!! should work with uppercase status",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isActive := IsActive(tt.line)
+			if isActive != tt.shouldBeActive {
+				t.Errorf("IsActive() = %v, want %v for line: %s\nDescription: %s", 
+					isActive, tt.shouldBeActive, tt.line, tt.description)
+			}
+		})
 	}
 } 

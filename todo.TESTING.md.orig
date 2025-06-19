@@ -1,0 +1,70 @@
+# TODO Personal
+
+``` js
+let legend={status: {b:"blocked", w:"worked", '[xX]':"complete", "[BWX]": "touched"}, metadata: { '!!': 'today', '!next':'next step', '!followup':"followup date", '!worked':"worked hours", '!deps':'dependencies'}, priorityWithFibonacciEstimate: ['A1', 'B2', 'C3', 'D5', 'A8', 'B13']}
+```
+
+## ACTIVE
+
+- [ ] !! #taskmasterra add proper tests
+  - [x] #taskmasterra add tests for task.go
+  - [ ] #taskmasterra add tests for main.go
+  - [ ] #taskmasterra add tests for journal.go
+  - [ ] #taskmasterra add tests for reminder.go
+  - [ ] #taskmasterra make updatecal become updatereminders (and make updatecal a 'deprecated' alias for updatereminders)
+- [X] #ferris #security only essential ports open
+- [B] #ferris #security ssh requires knock
+- [ ] #ferris #security fail2ban for 80,443,22
+- [ ] #ferris #security rebuild with only 80 and 443 open to docker container, 22 open only to knock sequence
+- [ ] B1 #FEATURE #taskmasterra if not already considered active {add task due dates <2094-09-26>}
+- [w] #safety
+  - [ ] #safety Get permanant residence in a safe and prosperous country
+  - [ ] #safety create a comparison of options (e.g. real estate purchase cost and residence or citizenship and visa/travel granted)
+  - [ ] #safety [[personal.perm-residence.st-kitts-and-nevis]]
+  - [ ] #safety [[personal.perm-residence.saint-lucia]]
+- [ ] A1 !! share passwords with @andreaArles
+  - master
+  - proton pass
+  - docs.encrypted
+  - ferris, moriarty
+  - appleID
+
+## BACKLOG
+
+- [w] A1 site/server backups :#selfHosting:#backup: $HOME /pds gotosocial web (more?)
+- [b] A8 create a project that enlists as many high level goals as possible <2021-12-10 Fri .+30d>
+- [ ] B1 review personal IDEAS todo section <2021-12-03 Fri .+7d>
+- [ ] [#C] move 32hours.com to hugo, abandon wordpress :#32hours.com:#hugo:
+- [ ] automation of recurring tasks, link script or executable like `cron` <2021-12-06 Mon .+7d>
+
+- high level, BRAINSTORM, business project ideas
+  No need for realistic goals.
+  Something solo or at least remote team members.
+  Nothing requiring sales, sells self.
+  consider wrapping/combining existing open source tools.
+  solve "simple" problems that others find difficult.
+- private network, family vpn that just works
+- better org and org-roam that just works
+- quality framework that just works
+- some variant of fediverse application
+  - \*notes
+    - blog
+  - \*second brain
+    - secure
+  - \*private gathering blog/social/planning/sharing
+    - ? with verified (ie blockchain) identities and mojo scores
+  - \*? with home automation tie-ins
+    - ? combined with private network/family vpn idea
+- Developers tools
+  - a better text editor
+  - an add-on for an existing editor(s)
+- Systems Engineer tools
+- outmind. map/outliner.
+  - choose tools that are protocols over tools that may change (version upgrades, e.g. node and webdriver.io)
+  - research db
+    - would lynx be a useful cli front end for a roguelike interface? This would make the ui html, so a protocol dependency not a specific tool dependency.
+  - research ui
+  - \*research ?
+  - architecture
+    - ?json|toml|yaml? object (structure so I can write a document that is then represented in a gui/tui, and vice-versa)
+    - has a hashmap of {documents it is in: {position-in-document, connections-other-objects, tags, text, text-color shape, color}}
