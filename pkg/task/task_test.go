@@ -180,4 +180,31 @@ func TestTaskFileProcessing(t *testing.T) {
 			t.Errorf("Found completed task in updated todo: %s", line)
 		}
 	}
+}
+
+func TestIsTaskDetailAndIsSubTask(t *testing.T) {
+	tests := []struct {
+		line         string
+		isDetail     bool
+		isSubTask    bool
+	}{
+		{"  - [ ] detail line", true, true},
+		{"\t- [x] subtask with tab", true, true},
+		{"    - [w] deeply indented", true, true},
+		{"- [ ] not a detail", false, false},
+		{"- [x] not a subtask", false, false},
+		{"random text", false, false},
+		{"", false, false},
+		{"- [ ]", false, false},
+		{"  - detail without brackets", true, false},
+	}
+
+	for _, tt := range tests {
+		if got := IsTaskDetail(tt.line); got != tt.isDetail {
+			t.Errorf("IsTaskDetail(%q) = %v, want %v", tt.line, got, tt.isDetail)
+		}
+		if got := IsSubTask(tt.line); got != tt.isSubTask {
+			t.Errorf("IsSubTask(%q) = %v, want %v", tt.line, got, tt.isSubTask)
+		}
+	}
 } 

@@ -2,15 +2,19 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/robertarles/taskmasterra/v2/pkg/config"
 	"github.com/robertarles/taskmasterra/v2/pkg/journal"
 	"github.com/robertarles/taskmasterra/v2/pkg/reminder"
+	"github.com/robertarles/taskmasterra/v2/pkg/stats"
 	"github.com/robertarles/taskmasterra/v2/pkg/task"
+	"github.com/robertarles/taskmasterra/v2/pkg/validator"
 )
 
 // Build information. Populated at build-time.
@@ -21,6 +25,9 @@ var (
 )
 
 func expandPath(path string) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("path cannot be empty")
+	}
 	if strings.HasPrefix(path, "~") {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
@@ -182,10 +189,96 @@ func updateCalendar(filePath string) error {
 func printHelp() {
 	fmt.Println("Usage: taskmasterra <command> [options]")
 	fmt.Println("Commands:")
-	fmt.Println("  updatecal     Update the calendar with today's tasks")
+	fmt.Println("  updatereminders Update the calendar with today's tasks")
 	fmt.Println("  recordkeep    Record tasks to journal and archive files")
+	fmt.Println("  stats         Generate task statistics report")
+	fmt.Println("  validate      Validate task file format")
+	fmt.Println("  config        Manage configuration")
 	fmt.Println("  version       Show the version of taskmasterra")
 	fmt.Println("  help          Show this help message")
+}
+
+func generateStats(filePath string, outputPath string) error {
+	expandedPath, err := expandPath(filePath)
+	if err != nil {
+		return fmt.Errorf("error expanding file path: %w", err)
+	}
+
+	statsData, err := stats.AnalyzeFile(expandedPath)
+	if err != nil {
+		return fmt.Errorf("error analyzing file: %w", err)
+	}
+
+	report := stats.GenerateReport(statsData)
+
+	if outputPath != "" {
+		expandedOutputPath, err := expandPath(outputPath)
+		if err != nil {
+			return fmt.Errorf("error expanding output path: %w", err)
+		}
+		if err := stats.SaveReport(report, expandedOutputPath); err != nil {
+			return fmt.Errorf("error saving report: %w", err)
+		}
+		fmt.Printf("Statistics report saved to: %s\n", expandedOutputPath)
+	} else {
+		fmt.Println(report)
+	}
+
+	return nil
+}
+
+func validateFile(filePath string) error {
+	expandedPath, err := expandPath(filePath)
+	if err != nil {
+		return fmt.Errorf("error expanding file path: %w", err)
+	}
+
+	content, err := os.ReadFile(expandedPath)
+	if err != nil {
+		return fmt.Errorf("error reading file: %w", err)
+	}
+
+	result := validator.ValidateFile(string(content))
+	fmt.Print(validator.FormatValidationResult(result))
+
+	if result.HasErrors() {
+		return fmt.Errorf("validation failed with %d errors", len(result.Errors))
+	}
+
+	return nil
+}
+
+func manageConfig(configPath string, show bool, init bool) error {
+	if init {
+		cfg := config.DefaultConfig()
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("error getting home directory: %w", err)
+		}
+		defaultConfigPath := filepath.Join(homeDir, ".taskmasterra", "config.json")
+		
+		if err := config.SaveConfig(cfg, defaultConfigPath); err != nil {
+			return fmt.Errorf("error creating config file: %w", err)
+		}
+		fmt.Printf("Configuration file created at: %s\n", defaultConfigPath)
+		return nil
+	}
+
+	if show {
+		cfg, err := config.LoadConfig(configPath)
+		if err != nil {
+			return fmt.Errorf("error loading config: %w", err)
+		}
+
+		data, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("error marshaling config: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	return nil
 }
 
 func main() {
@@ -197,8 +290,8 @@ func main() {
 	command := os.Args[1]
 
 	switch command {
-	case "updatecal":
-		updateCalCmd := flag.NewFlagSet("updatecal", flag.ExitOnError)
+	case "updatereminders", "updatecal":
+		updateCalCmd := flag.NewFlagSet("updatereminders", flag.ExitOnError)
 		inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
 		if err := updateCalCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("Error parsing flags: %v\n", err)
@@ -206,7 +299,7 @@ func main() {
 		}
 
 		if *inputFilePath == "" {
-			fmt.Println("Error: Input file path is required for updatecal command. Use -i to specify the path.")
+			fmt.Println("Error: Input file path is required for updatereminders command. Use -i to specify the path.")
 			updateCalCmd.Usage()
 			return
 		}
@@ -231,6 +324,66 @@ func main() {
 		}
 
 		if err := recordKeep(*inputFilePath); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "stats":
+		statsCmd := flag.NewFlagSet("stats", flag.ExitOnError)
+		inputFilePath := statsCmd.String("i", "", "Path to the markdown input file")
+		outputFilePath := statsCmd.String("o", "", "Path to the output statistics report file")
+		if err := statsCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
+
+		if *inputFilePath == "" {
+			fmt.Println("Error: Input file path is required for stats command. Use -i to specify the path.")
+			statsCmd.Usage()
+			return
+		}
+
+		if err := generateStats(*inputFilePath, *outputFilePath); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "validate":
+		validateCmd := flag.NewFlagSet("validate", flag.ExitOnError)
+		inputFilePath := validateCmd.String("i", "", "Path to the markdown input file")
+		if err := validateCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
+
+		if *inputFilePath == "" {
+			fmt.Println("Error: Input file path is required for validate command. Use -i to specify the path.")
+			validateCmd.Usage()
+			return
+		}
+
+		if err := validateFile(*inputFilePath); err != nil {
+			fmt.Printf("Error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "config":
+		configCmd := flag.NewFlagSet("config", flag.ExitOnError)
+		configFilePath := configCmd.String("c", "", "Path to the configuration file")
+		show := configCmd.Bool("show", false, "Show the configuration")
+		init := configCmd.Bool("init", false, "Initialize a new configuration")
+		if err := configCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("Error parsing flags: %v\n", err)
+			os.Exit(1)
+		}
+
+		if *init && *show {
+			fmt.Println("Error: Cannot use both -init and -show flags together")
+			configCmd.Usage()
+			return
+		}
+
+		if err := manageConfig(*configFilePath, *show, *init); err != nil {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}

@@ -88,8 +88,8 @@ func TestEscapeAppleScriptString(t *testing.T) {
 // TestClearList tests the ClearList function
 func TestClearList(t *testing.T) {
 	// Save the original exec.Command and restore it after the test
-	originalExecCommand := execCommand
-	defer func() { execCommand = originalExecCommand }()
+	originalExecCommand := ExecCommand
+	defer func() { ExecCommand = originalExecCommand }()
 
 	tests := []struct {
 		name        string
@@ -116,7 +116,7 @@ func TestClearList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up mock command
-			execCommand = func(command string, args ...string) *exec.Cmd {
+			ExecCommand = func(command string, args ...string) *exec.Cmd {
 				if command != "osascript" {
 					t.Errorf("Expected command 'osascript', got %q", command)
 				}
@@ -149,8 +149,8 @@ func TestClearList(t *testing.T) {
 // TestAddReminder tests the AddReminder function
 func TestAddReminder(t *testing.T) {
 	// Save the original exec.Command and restore it after the test
-	originalExecCommand := execCommand
-	defer func() { execCommand = originalExecCommand }()
+	originalExecCommand := ExecCommand
+	defer func() { ExecCommand = originalExecCommand }()
 
 	tests := []struct {
 		name        string
@@ -197,7 +197,7 @@ func TestAddReminder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set up mock command
-			execCommand = func(command string, args ...string) *exec.Cmd {
+			ExecCommand = func(command string, args ...string) *exec.Cmd {
 				if command != "osascript" {
 					t.Errorf("Expected command 'osascript', got %q", command)
 				}

@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// execCommand is a variable that holds the exec.Command function.
+// ExecCommand is a variable that holds the exec.Command function.
 // This allows us to replace it with a mock during testing.
-var execCommand = exec.Command
+var ExecCommand = exec.Command
 
 // Service handles interactions with macOS Reminders
 type Service struct {
@@ -44,7 +44,7 @@ func (s *Service) ClearList() error {
 		end tell
 	`, escapeAppleScriptString(s.ListName), escapeAppleScriptString(s.ListName))
 
-	cmd := execCommand("osascript", "-e", script)
+	cmd := ExecCommand("osascript", "-e", script)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
@@ -91,7 +91,7 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
 		end tell
 	`, escapedListName, escapedListName, dueDateSetup, escapedListName, properties)
 
-	cmd := execCommand("osascript", "-e", script)
+	cmd := ExecCommand("osascript", "-e", script)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 

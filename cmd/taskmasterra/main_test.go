@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/robertarles/taskmasterra/v2/pkg/reminder"
 )
 
 // Save the original exec.Command
@@ -43,9 +45,20 @@ func TestHelperProcess(t *testing.T) {
 	// Mock different command behaviors
 	switch args[0] {
 	case "osascript":
-		if strings.Contains(strings.Join(args, " "), "error-test") {
-			fmt.Fprintf(os.Stderr, "osascript error: test error")
+		if len(args) < 3 || args[1] != "-e" {
+			fmt.Fprintf(os.Stderr, "invalid osascript arguments")
 			os.Exit(1)
+		}
+		script := args[2]
+		if strings.Contains(script, "error-test") {
+			if strings.Contains(script, "delete reminders") {
+				fmt.Fprintf(os.Stderr, "osascript error: failed to clear list")
+				os.Exit(1)
+			}
+			if strings.Contains(script, "make new reminder") {
+				fmt.Fprintf(os.Stderr, "osascript error: failed to add reminder")
+				os.Exit(1)
+			}
 		}
 		os.Exit(0)
 	default:
@@ -197,6 +210,11 @@ func TestUpdateCalendar(t *testing.T) {
 	defer func() { execCommand = originalExecCommand }()
 	execCommand = fakeExecCommand
 
+	// Override reminder.ExecCommand as well
+	origReminderExecCommand := reminder.ExecCommand
+	defer func() { reminder.ExecCommand = origReminderExecCommand }()
+	reminder.ExecCommand = fakeExecCommand
+
 	tmpDir, err := os.MkdirTemp("", "updatecal-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
@@ -276,7 +294,7 @@ func TestPrintHelp(t *testing.T) {
 	expectedStrings := []string{
 		"Usage:",
 		"recordkeep",
-		"updatecal",
+		"updatereminders",
 		"version",
 		"help",
 	}
@@ -352,6 +370,11 @@ func TestMain_Commands(t *testing.T) {
 	defer func() { execCommand = originalExecCommand }()
 	execCommand = fakeExecCommand
 
+	// Override reminder.ExecCommand as well
+	origReminderExecCommand := reminder.ExecCommand
+	defer func() { reminder.ExecCommand = origReminderExecCommand }()
+	reminder.ExecCommand = fakeExecCommand
+
 	tmpDir, err := os.MkdirTemp("", "main-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp directory: %v", err)
@@ -378,7 +401,12 @@ func TestMain_Commands(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "updatecal command",
+			name:    "updatereminders command",
+			args:    []string{"taskmasterra", "updatereminders", "-i", todoPath},
+			wantErr: false,
+		},
+		{
+			name:    "updatecal command (alias)",
 			args:    []string{"taskmasterra", "updatecal", "-i", todoPath},
 			wantErr: false,
 		},
@@ -388,8 +416,8 @@ func TestMain_Commands(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "updatecal without input",
-			args:    []string{"taskmasterra", "updatecal"},
+			name:    "updatereminders without input",
+			args:    []string{"taskmasterra", "updatereminders"},
 			wantErr: true,
 		},
 		{

@@ -55,15 +55,23 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (58.3%)</option>
+				<option value="file0">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/main.go (50.5%)</option>
 				
-				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (50.0%)</option>
+				<option value="file1">github.com/robertarles/taskmasterra/v2/cmd/taskmasterra/version.go (75.0%)</option>
 				
-				<option value="file2">github.com/robertarles/taskmasterra/v2/pkg/journal/journal.go (92.3%)</option>
+				<option value="file2">github.com/robertarles/taskmasterra/v2/pkg/config/config.go (63.0%)</option>
 				
-				<option value="file3">github.com/robertarles/taskmasterra/v2/pkg/reminder/reminder.go (93.3%)</option>
+				<option value="file3">github.com/robertarles/taskmasterra/v2/pkg/journal/journal.go (100.0%)</option>
 				
-				<option value="file4">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.0%)</option>
+				<option value="file4">github.com/robertarles/taskmasterra/v2/pkg/reminder/reminder.go (93.3%)</option>
+				
+				<option value="file5">github.com/robertarles/taskmasterra/v2/pkg/stats/stats.go (95.2%)</option>
+				
+				<option value="file6">github.com/robertarles/taskmasterra/v2/pkg/task/priority.go (100.0%)</option>
+				
+				<option value="file7">github.com/robertarles/taskmasterra/v2/pkg/task/task.go (90.0%)</option>
+				
+				<option value="file8">github.com/robertarles/taskmasterra/v2/pkg/validator/validator.go (87.5%)</option>
 				
 				</select>
 			</div>
@@ -81,15 +89,19 @@
 
 import (
         "bufio"
+        "encoding/json"
         "flag"
         "fmt"
         "os"
         "path/filepath"
         "strings"
 
+        "github.com/robertarles/taskmasterra/v2/pkg/config"
         "github.com/robertarles/taskmasterra/v2/pkg/journal"
         "github.com/robertarles/taskmasterra/v2/pkg/reminder"
+        "github.com/robertarles/taskmasterra/v2/pkg/stats"
         "github.com/robertarles/taskmasterra/v2/pkg/task"
+        "github.com/robertarles/taskmasterra/v2/pkg/validator"
 )
 
 // Build information. Populated at build-time.
@@ -100,7 +112,10 @@ var (
 )
 
 func expandPath(path string) (string, error) <span class="cov8" title="1">{
-        if strings.HasPrefix(path, "~") </span><span class="cov8" title="1">{
+        if path == "" </span><span class="cov8" title="1">{
+                return "", fmt.Errorf("path cannot be empty")
+        }</span>
+        <span class="cov8" title="1">if strings.HasPrefix(path, "~") </span><span class="cov8" title="1">{
                 homeDir, err := os.UserHomeDir()
                 if err != nil </span><span class="cov0" title="0">{
                         return "", err
@@ -250,7 +265,7 @@ func updateCalendar(filePath string) error <span class="cov8" title="1">{
 
         // Add the last task if there is one
         <span class="cov8" title="1">if currentTask != "" </span><span class="cov8" title="1">{
-                if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil </span><span class="cov0" title="0">{
+                if err := rs.AddReminder(currentTask, task.IsActive(currentLine), strings.Join(notes, "\n")); err != nil </span><span class="cov8" title="1">{
                         return fmt.Errorf("failed to add reminder: %w", err)
                 }</span>
         }
@@ -258,44 +273,130 @@ func updateCalendar(filePath string) error <span class="cov8" title="1">{
         <span class="cov8" title="1">return nil</span>
 }
 
-func printHelp() <span class="cov0" title="0">{
+func printHelp() <span class="cov8" title="1">{
         fmt.Println("Usage: taskmasterra &lt;command&gt; [options]")
         fmt.Println("Commands:")
-        fmt.Println("  updatecal     Update the calendar with today's tasks")
+        fmt.Println("  updatereminders Update the calendar with today's tasks")
         fmt.Println("  recordkeep    Record tasks to journal and archive files")
+        fmt.Println("  stats         Generate task statistics report")
+        fmt.Println("  validate      Validate task file format")
+        fmt.Println("  config        Manage configuration")
         fmt.Println("  version       Show the version of taskmasterra")
         fmt.Println("  help          Show this help message")
 }</span>
 
-func main() <span class="cov0" title="0">{
-        if len(os.Args) &lt; 2 </span><span class="cov0" title="0">{
+func generateStats(filePath string, outputPath string) error <span class="cov0" title="0">{
+        expandedPath, err := expandPath(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error expanding file path: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">statsData, err := stats.AnalyzeFile(expandedPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error analyzing file: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">report := stats.GenerateReport(statsData)
+
+        if outputPath != "" </span><span class="cov0" title="0">{
+                expandedOutputPath, err := expandPath(outputPath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error expanding output path: %w", err)
+                }</span>
+                <span class="cov0" title="0">if err := stats.SaveReport(report, expandedOutputPath); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error saving report: %w", err)
+                }</span>
+                <span class="cov0" title="0">fmt.Printf("Statistics report saved to: %s\n", expandedOutputPath)</span>
+        } else<span class="cov0" title="0"> {
+                fmt.Println(report)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func validateFile(filePath string) error <span class="cov0" title="0">{
+        expandedPath, err := expandPath(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error expanding file path: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">content, err := os.ReadFile(expandedPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("error reading file: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">result := validator.ValidateFile(string(content))
+        fmt.Print(validator.FormatValidationResult(result))
+
+        if result.HasErrors() </span><span class="cov0" title="0">{
+                return fmt.Errorf("validation failed with %d errors", len(result.Errors))
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func manageConfig(configPath string, show bool, init bool) error <span class="cov0" title="0">{
+        if init </span><span class="cov0" title="0">{
+                cfg := config.DefaultConfig()
+                homeDir, err := os.UserHomeDir()
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error getting home directory: %w", err)
+                }</span>
+                <span class="cov0" title="0">defaultConfigPath := filepath.Join(homeDir, ".taskmasterra", "config.json")
+                
+                if err := config.SaveConfig(cfg, defaultConfigPath); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error creating config file: %w", err)
+                }</span>
+                <span class="cov0" title="0">fmt.Printf("Configuration file created at: %s\n", defaultConfigPath)
+                return nil</span>
+        }
+
+        <span class="cov0" title="0">if show </span><span class="cov0" title="0">{
+                cfg, err := config.LoadConfig(configPath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error loading config: %w", err)
+                }</span>
+
+                <span class="cov0" title="0">data, err := json.MarshalIndent(cfg, "", "  ")
+                if err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("error marshaling config: %w", err)
+                }</span>
+                <span class="cov0" title="0">fmt.Println(string(data))
+                return nil</span>
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+func main() <span class="cov8" title="1">{
+        if len(os.Args) &lt; 2 </span><span class="cov8" title="1">{
                 printHelp()
                 return
         }</span>
 
-        <span class="cov0" title="0">command := os.Args[1]
+        <span class="cov8" title="1">command := os.Args[1]
 
         switch command </span>{
-        case "updatecal":<span class="cov0" title="0">
-                updateCalCmd := flag.NewFlagSet("updatecal", flag.ExitOnError)
+        case "updatereminders", "updatecal":<span class="cov8" title="1">
+                updateCalCmd := flag.NewFlagSet("updatereminders", flag.ExitOnError)
                 inputFilePath := updateCalCmd.String("i", "", "Path to the markdown input file")
                 if err := updateCalCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
                         fmt.Printf("Error parsing flags: %v\n", err)
                         os.Exit(1)
                 }</span>
 
-                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
-                        fmt.Println("Error: Input file path is required for updatecal command. Use -i to specify the path.")
+                <span class="cov8" title="1">if *inputFilePath == "" </span><span class="cov8" title="1">{
+                        fmt.Println("Error: Input file path is required for updatereminders command. Use -i to specify the path.")
                         updateCalCmd.Usage()
                         return
                 }</span>
 
-                <span class="cov0" title="0">if err := updateCalendar(*inputFilePath); err != nil </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if err := updateCalendar(*inputFilePath); err != nil </span><span class="cov0" title="0">{
                         fmt.Printf("Error: %v\n", err)
                         os.Exit(1)
                 }</span>
 
-        case "recordkeep":<span class="cov0" title="0">
+        case "recordkeep":<span class="cov8" title="1">
                 recordKeepCmd := flag.NewFlagSet("recordkeep", flag.ExitOnError)
                 inputFilePath := recordKeepCmd.String("i", "", "Path to the markdown input file")
                 if err := recordKeepCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
@@ -303,22 +404,82 @@ func main() <span class="cov0" title="0">{
                         os.Exit(1)
                 }</span>
 
-                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if *inputFilePath == "" </span><span class="cov8" title="1">{
                         fmt.Println("Error: Input file path is required for recordkeep command. Use -i to specify the path.")
                         recordKeepCmd.Usage()
                         return
                 }</span>
 
-                <span class="cov0" title="0">if err := recordKeep(*inputFilePath); err != nil </span><span class="cov0" title="0">{
+                <span class="cov8" title="1">if err := recordKeep(*inputFilePath); err != nil </span><span class="cov0" title="0">{
                         fmt.Printf("Error: %v\n", err)
                         os.Exit(1)
                 }</span>
 
-        case "version":<span class="cov0" title="0">
+        case "stats":<span class="cov0" title="0">
+                statsCmd := flag.NewFlagSet("stats", flag.ExitOnError)
+                inputFilePath := statsCmd.String("i", "", "Path to the markdown input file")
+                outputFilePath := statsCmd.String("o", "", "Path to the output statistics report file")
+                if err := statsCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error parsing flags: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
+                        fmt.Println("Error: Input file path is required for stats command. Use -i to specify the path.")
+                        statsCmd.Usage()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := generateStats(*inputFilePath, *outputFilePath); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+        case "validate":<span class="cov0" title="0">
+                validateCmd := flag.NewFlagSet("validate", flag.ExitOnError)
+                inputFilePath := validateCmd.String("i", "", "Path to the markdown input file")
+                if err := validateCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error parsing flags: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+                <span class="cov0" title="0">if *inputFilePath == "" </span><span class="cov0" title="0">{
+                        fmt.Println("Error: Input file path is required for validate command. Use -i to specify the path.")
+                        validateCmd.Usage()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := validateFile(*inputFilePath); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+        case "config":<span class="cov0" title="0">
+                configCmd := flag.NewFlagSet("config", flag.ExitOnError)
+                configFilePath := configCmd.String("c", "", "Path to the configuration file")
+                show := configCmd.Bool("show", false, "Show the configuration")
+                init := configCmd.Bool("init", false, "Initialize a new configuration")
+                if err := configCmd.Parse(os.Args[2:]); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error parsing flags: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+                <span class="cov0" title="0">if *init &amp;&amp; *show </span><span class="cov0" title="0">{
+                        fmt.Println("Error: Cannot use both -init and -show flags together")
+                        configCmd.Usage()
+                        return
+                }</span>
+
+                <span class="cov0" title="0">if err := manageConfig(*configFilePath, *show, *init); err != nil </span><span class="cov0" title="0">{
+                        fmt.Printf("Error: %v\n", err)
+                        os.Exit(1)
+                }</span>
+
+        case "version":<span class="cov8" title="1">
                 fmt.Println(getVersionString())
                 return</span>
 
-        default:<span class="cov0" title="0">
+        default:<span class="cov8" title="1">
                 printHelp()</span>
         }
 } </pre>
@@ -340,11 +501,106 @@ func init() <span class="cov8" title="1">{
         }
 }
 
-func getVersionString() string <span class="cov0" title="0">{
+func getVersionString() string <span class="cov8" title="1">{
         return fmt.Sprintf("taskmasterra %s", Version)
 }</span> </pre>
 		
-		<pre class="file" id="file2" style="display: none">package journal
+		<pre class="file" id="file2" style="display: none">package config
+
+import (
+        "encoding/json"
+        "fmt"
+        "os"
+        "path/filepath"
+)
+
+// Config holds application configuration
+type Config struct {
+        // Reminder settings
+        DefaultDueHour   int    `json:"default_due_hour"`
+        DefaultDueMinute int    `json:"default_due_minute"`
+        ReminderListName string `json:"reminder_list_name"`
+
+        // Journal settings
+        JournalSuffix string `json:"journal_suffix"`
+        ArchiveSuffix string `json:"archive_suffix"`
+
+        // File settings
+        DefaultFilePermissions os.FileMode `json:"default_file_permissions"`
+
+        // Task settings
+        ActiveMarker string `json:"active_marker"`
+}
+
+// DefaultConfig returns the default configuration
+func DefaultConfig() *Config <span class="cov8" title="1">{
+        return &amp;Config{
+                DefaultDueHour:        16,
+                DefaultDueMinute:      0,
+                ReminderListName:      "Taskmasterra",
+                JournalSuffix:         ".xjournal.md",
+                ArchiveSuffix:         ".xarchive.md",
+                DefaultFilePermissions: 0644,
+                ActiveMarker:          "!!",
+        }
+}</span>
+
+// LoadConfig loads configuration from file or returns default
+func LoadConfig(configPath string) (*Config, error) <span class="cov8" title="1">{
+        if configPath == "" </span><span class="cov0" title="0">{
+                // Try to find config in default location
+                homeDir, err := os.UserHomeDir()
+                if err != nil </span><span class="cov0" title="0">{
+                        return DefaultConfig(), nil
+                }</span>
+                <span class="cov0" title="0">configPath = filepath.Join(homeDir, ".taskmasterra", "config.json")</span>
+        }
+
+        // Check if config file exists
+        <span class="cov8" title="1">if _, err := os.Stat(configPath); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                // Create default config file
+                config := DefaultConfig()
+                if err := SaveConfig(config, configPath); err != nil </span><span class="cov0" title="0">{
+                        return config, fmt.Errorf("failed to create default config: %w", err)
+                }</span>
+                <span class="cov8" title="1">return config, nil</span>
+        }
+
+        // Read existing config
+        <span class="cov8" title="1">data, err := os.ReadFile(configPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return DefaultConfig(), fmt.Errorf("failed to read config file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">var config Config
+        if err := json.Unmarshal(data, &amp;config); err != nil </span><span class="cov0" title="0">{
+                return DefaultConfig(), fmt.Errorf("failed to parse config file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return &amp;config, nil</span>
+}
+
+// SaveConfig saves configuration to file
+func SaveConfig(config *Config, configPath string) error <span class="cov8" title="1">{
+        // Ensure directory exists
+        configDir := filepath.Dir(configPath)
+        if err := os.MkdirAll(configDir, 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create config directory: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">data, err := json.MarshalIndent(config, "", "  ")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal config: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if err := os.WriteFile(configPath, data, 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write config file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+} </pre>
+		
+		<pre class="file" id="file3" style="display: none">package journal
 
 import (
         "fmt"
@@ -383,7 +639,7 @@ func (m *Manager) WriteToJournal(entries []string) error <span class="cov8" titl
         <span class="cov8" title="1">var existingContent []byte
         if _, err := os.Stat(m.JournalPath); err == nil </span><span class="cov8" title="1">{
                 existingContent, err = os.ReadFile(m.JournalPath)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         return fmt.Errorf("error reading journal file: %w", err)
                 }</span>
         }
@@ -403,7 +659,7 @@ func (m *Manager) WriteToArchive(entries []string) error <span class="cov8" titl
         <span class="cov8" title="1">var existingContent []byte
         if _, err := os.Stat(m.ArchivePath); err == nil </span><span class="cov8" title="1">{
                 existingContent, err = os.ReadFile(m.ArchivePath)
-                if err != nil </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov8" title="1">{
                         return fmt.Errorf("error reading archive file: %w", err)
                 }</span>
         }
@@ -420,7 +676,7 @@ func FormatTimestamp() string <span class="cov8" title="1">{
         return currentTime.Format("[2006-01-02 15:04:05 UTC]")
 }</span> </pre>
 		
-		<pre class="file" id="file3" style="display: none">package reminder
+		<pre class="file" id="file4" style="display: none">package reminder
 
 import (
         "bytes"
@@ -429,9 +685,9 @@ import (
         "strings"
 )
 
-// execCommand is a variable that holds the exec.Command function.
+// ExecCommand is a variable that holds the exec.Command function.
 // This allows us to replace it with a mock during testing.
-var execCommand = exec.Command
+var ExecCommand = exec.Command
 
 // Service handles interactions with macOS Reminders
 type Service struct {
@@ -466,7 +722,7 @@ func (s *Service) ClearList() error <span class="cov8" title="1">{
                 end tell
         `, escapeAppleScriptString(s.ListName), escapeAppleScriptString(s.ListName))
 
-        cmd := execCommand("osascript", "-e", script)
+        cmd := ExecCommand("osascript", "-e", script)
         var stderr bytes.Buffer
         cmd.Stderr = &amp;stderr
 
@@ -513,7 +769,7 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
                 end tell
         `, escapedListName, escapedListName, dueDateSetup, escapedListName, properties)
 
-        cmd := execCommand("osascript", "-e", script)
+        cmd := ExecCommand("osascript", "-e", script)
         var stderr bytes.Buffer
         cmd.Stderr = &amp;stderr
 
@@ -524,7 +780,305 @@ func (s *Service) AddReminder(task string, withDueDate bool, note string) error 
         <span class="cov8" title="1">return nil</span>
 } </pre>
 		
-		<pre class="file" id="file4" style="display: none">package task
+		<pre class="file" id="file5" style="display: none">package stats
+
+import (
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "time"
+
+        "github.com/robertarles/taskmasterra/v2/pkg/task"
+)
+
+// TaskStats contains statistics about tasks
+type TaskStats struct {
+        TotalTasks     int
+        CompletedTasks int
+        ActiveTasks    int
+        BlockedTasks   int
+        WorkedTasks    int
+        PriorityStats  map[string]int
+        EffortStats    map[int]int
+        Date           time.Time
+}
+
+// NewTaskStats creates a new TaskStats instance
+func NewTaskStats() *TaskStats <span class="cov8" title="1">{
+        return &amp;TaskStats{
+                PriorityStats: make(map[string]int),
+                EffortStats:   make(map[int]int),
+                Date:          time.Now(),
+        }
+}</span>
+
+// AnalyzeFile analyzes a markdown file and returns task statistics
+func AnalyzeFile(filePath string) (*TaskStats, error) <span class="cov8" title="1">{
+        content, err := os.ReadFile(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read file: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">stats := NewTaskStats()
+        lines := strings.Split(string(content), "\n")
+
+        for _, line := range lines </span><span class="cov8" title="1">{
+                if !task.IsTask(line) </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">stats.TotalTasks++
+
+                // Count by status
+                if task.IsCompleted(line) </span><span class="cov8" title="1">{
+                        stats.CompletedTasks++
+                }</span> else<span class="cov8" title="1"> if task.IsActive(line) </span><span class="cov8" title="1">{
+                        stats.ActiveTasks++
+                }</span> else<span class="cov8" title="1"> {
+                        // Check for specific status markers
+                        if strings.Contains(line, "[b]") || strings.Contains(line, "[B]") </span><span class="cov8" title="1">{
+                                stats.BlockedTasks++
+                        }</span> else<span class="cov8" title="1"> if strings.Contains(line, "[w]") || strings.Contains(line, "[W]") </span><span class="cov8" title="1">{
+                                stats.WorkedTasks++
+                        }</span>
+                }
+
+                // Count by priority
+                <span class="cov8" title="1">taskInfo := task.ParseTaskInfo(line)
+                if taskInfo != nil </span><span class="cov8" title="1">{
+                        priority := taskInfo.Priority.String()
+                        stats.PriorityStats[priority]++
+
+                        if taskInfo.Effort &gt; 0 </span><span class="cov8" title="1">{
+                                stats.EffortStats[taskInfo.Effort]++
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">return stats, nil</span>
+}
+
+// GenerateReport generates a formatted report from task statistics
+func GenerateReport(stats *TaskStats) string <span class="cov8" title="1">{
+        var report strings.Builder
+
+        report.WriteString("# Task Statistics Report\n")
+        report.WriteString(fmt.Sprintf("Generated: %s\n\n", stats.Date.Format("2006-01-02 15:04:05")))
+
+        // Overall statistics
+        report.WriteString("## Overall Statistics\n")
+        report.WriteString(fmt.Sprintf("- Total Tasks: %d\n", stats.TotalTasks))
+        report.WriteString(fmt.Sprintf("- Completed: %d (%.1f%%)\n", stats.CompletedTasks, percentage(stats.CompletedTasks, stats.TotalTasks)))
+        report.WriteString(fmt.Sprintf("- Active: %d (%.1f%%)\n", stats.ActiveTasks, percentage(stats.ActiveTasks, stats.TotalTasks)))
+        report.WriteString(fmt.Sprintf("- Blocked: %d (%.1f%%)\n", stats.BlockedTasks, percentage(stats.BlockedTasks, stats.TotalTasks)))
+        report.WriteString(fmt.Sprintf("- Worked On: %d (%.1f%%)\n", stats.WorkedTasks, percentage(stats.WorkedTasks, stats.TotalTasks)))
+        report.WriteString("\n")
+
+        // Priority breakdown
+        if len(stats.PriorityStats) &gt; 0 </span><span class="cov8" title="1">{
+                report.WriteString("## Priority Breakdown\n")
+                for priority, count := range stats.PriorityStats </span><span class="cov8" title="1">{
+                        if priority != "None" </span><span class="cov8" title="1">{
+                                report.WriteString(fmt.Sprintf("- %s: %d (%.1f%%)\n", priority, count, percentage(count, stats.TotalTasks)))
+                        }</span>
+                }
+                <span class="cov8" title="1">report.WriteString("\n")</span>
+        }
+
+        // Effort breakdown
+        <span class="cov8" title="1">if len(stats.EffortStats) &gt; 0 </span><span class="cov8" title="1">{
+                report.WriteString("## Effort Breakdown\n")
+                for effort, count := range stats.EffortStats </span><span class="cov8" title="1">{
+                        report.WriteString(fmt.Sprintf("- Effort %d: %d tasks\n", effort, count))
+                }</span>
+                <span class="cov8" title="1">report.WriteString("\n")</span>
+        }
+
+        // Progress summary
+        <span class="cov8" title="1">completionRate := percentage(stats.CompletedTasks, stats.TotalTasks)
+        report.WriteString("## Progress Summary\n")
+        report.WriteString(fmt.Sprintf("- Completion Rate: %.1f%%\n", completionRate))
+        
+        if stats.TotalTasks &gt; 0 </span><span class="cov8" title="1">{
+                activeRate := percentage(stats.ActiveTasks, stats.TotalTasks)
+                report.WriteString(fmt.Sprintf("- Active Rate: %.1f%%\n", activeRate))
+        }</span>
+
+        <span class="cov8" title="1">return report.String()</span>
+}
+
+// percentage calculates percentage with proper handling of zero values
+func percentage(part, total int) float64 <span class="cov8" title="1">{
+        if total == 0 </span><span class="cov8" title="1">{
+                return 0.0
+        }</span>
+        <span class="cov8" title="1">return float64(part) / float64(total) * 100</span>
+}
+
+// SaveReport saves a statistics report to a file
+func SaveReport(report string, outputPath string) error <span class="cov8" title="1">{
+        // Ensure directory exists
+        outputDir := filepath.Dir(outputPath)
+        if err := os.MkdirAll(outputDir, 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create output directory: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if err := os.WriteFile(outputPath, []byte(report), 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write report: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+} </pre>
+		
+		<pre class="file" id="file6" style="display: none">package task
+
+import (
+        "fmt"
+        "regexp"
+        "strconv"
+        "strings"
+)
+
+// Priority represents task priority levels
+type Priority int
+
+const (
+        PriorityNone Priority = iota
+        PriorityLow
+        PriorityMedium
+        PriorityHigh
+        PriorityCritical
+)
+
+// String returns the string representation of priority
+func (p Priority) String() string <span class="cov8" title="1">{
+        switch p </span>{
+        case PriorityNone:<span class="cov8" title="1">
+                return "None"</span>
+        case PriorityLow:<span class="cov8" title="1">
+                return "Low"</span>
+        case PriorityMedium:<span class="cov8" title="1">
+                return "Medium"</span>
+        case PriorityHigh:<span class="cov8" title="1">
+                return "High"</span>
+        case PriorityCritical:<span class="cov8" title="1">
+                return "Critical"</span>
+        default:<span class="cov8" title="1">
+                return "Unknown"</span>
+        }
+}
+
+// ParsePriority extracts priority from task line
+func ParsePriority(line string) Priority <span class="cov8" title="1">{
+        // Look for priority markers like A1, B2, C3, etc.
+        re := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
+        matches := re.FindStringSubmatch(line)
+        if len(matches) &lt; 3 </span><span class="cov8" title="1">{
+                return PriorityNone
+        }</span>
+
+        <span class="cov8" title="1">priority := matches[1]
+
+        switch priority </span>{
+        case "A":<span class="cov8" title="1">
+                return PriorityCritical</span>
+        case "B":<span class="cov8" title="1">
+                return PriorityHigh</span>
+        case "C":<span class="cov8" title="1">
+                return PriorityMedium</span>
+        case "D":<span class="cov8" title="1">
+                return PriorityLow</span>
+        default:<span class="cov8" title="1">
+                return PriorityNone</span>
+        }
+}
+
+// ParseEffort extracts effort estimation from task line
+func ParseEffort(line string) int <span class="cov8" title="1">{
+        // Look for fibonacci effort numbers (1, 2, 3, 5, 8, 13, 21, 34, 55, 89)
+        re := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
+        matches := re.FindStringSubmatch(line)
+        if len(matches) &lt; 3 </span><span class="cov8" title="1">{
+                return 0
+        }</span>
+
+        <span class="cov8" title="1">effort, _ := strconv.Atoi(matches[2])
+        return effort</span>
+}
+
+// TaskInfo contains parsed task information
+type TaskInfo struct {
+        Line     string
+        Priority Priority
+        Effort   int
+        Status   string
+        Title    string
+}
+
+// ParseTaskInfo extracts all task information from a line
+func ParseTaskInfo(line string) *TaskInfo <span class="cov8" title="1">{
+        if !IsTask(line) </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        // Extract status
+        <span class="cov8" title="1">statusRe := regexp.MustCompile(`^\s*- \[([^\]]+)\]`)
+        statusMatches := statusRe.FindStringSubmatch(line)
+        status := ""
+        if len(statusMatches) &gt; 1 </span><span class="cov8" title="1">{
+                status = statusMatches[1]
+        }</span>
+
+        // Extract title (everything after the status)
+        <span class="cov8" title="1">titleRe := regexp.MustCompile(`^\s*- \[[^\]]+\]\s*(.*)`)
+        titleMatches := titleRe.FindStringSubmatch(line)
+        title := ""
+        if len(titleMatches) &gt; 1 </span><span class="cov8" title="1">{
+                title = strings.TrimSpace(titleMatches[1])
+        }</span>
+
+        <span class="cov8" title="1">return &amp;TaskInfo{
+                Line:     line,
+                Priority: ParsePriority(line),
+                Effort:   ParseEffort(line),
+                Status:   status,
+                Title:    title,
+        }</span>
+}
+
+// FormatTaskInfo formats task information for display
+func FormatTaskInfo(info *TaskInfo) string <span class="cov8" title="1">{
+        if info == nil </span><span class="cov8" title="1">{
+                return ""
+        }</span>
+
+        <span class="cov8" title="1">parts := []string{}
+        
+        // Add priority if present
+        if info.Priority != PriorityNone </span><span class="cov8" title="1">{
+                parts = append(parts, info.Priority.String())
+        }</span>
+        
+        // Add effort if present
+        <span class="cov8" title="1">if info.Effort &gt; 0 </span><span class="cov8" title="1">{
+                parts = append(parts, fmt.Sprintf("Effort: %d", info.Effort))
+        }</span>
+        
+        // Add status
+        <span class="cov8" title="1">if info.Status != "" </span><span class="cov8" title="1">{
+                parts = append(parts, fmt.Sprintf("Status: %s", info.Status))
+        }</span>
+        
+        // Add title
+        <span class="cov8" title="1">if info.Title != "" </span><span class="cov8" title="1">{
+                parts = append(parts, info.Title)
+        }</span>
+        
+        <span class="cov8" title="1">return strings.Join(parts, " | ")</span>
+} </pre>
+		
+		<pre class="file" id="file7" style="display: none">package task
 
 import (
         "fmt"
@@ -671,6 +1225,303 @@ func ProcessTasks(filePath string) error <span class="cov8" title="1">{
         }</span>
 
         <span class="cov8" title="1">return nil</span>
+} </pre>
+		
+		<pre class="file" id="file8" style="display: none">package validator
+
+import (
+        "fmt"
+        "regexp"
+        "strings"
+)
+
+// ValidationError represents a validation error
+type ValidationError struct {
+        Line    int
+        Message string
+        Level   ErrorLevel
+}
+
+// ErrorLevel represents the severity of a validation error
+type ErrorLevel int
+
+const (
+        LevelInfo ErrorLevel = iota
+        LevelWarning
+        LevelError
+)
+
+// String returns the string representation of error level
+func (l ErrorLevel) String() string <span class="cov8" title="1">{
+        switch l </span>{
+        case LevelInfo:<span class="cov8" title="1">
+                return "INFO"</span>
+        case LevelWarning:<span class="cov8" title="1">
+                return "WARNING"</span>
+        case LevelError:<span class="cov8" title="1">
+                return "ERROR"</span>
+        default:<span class="cov8" title="1">
+                return "UNKNOWN"</span>
+        }
+}
+
+// ValidationResult contains validation results
+type ValidationResult struct {
+        Errors   []ValidationError
+        Warnings []ValidationError
+        Info     []ValidationError
+}
+
+// NewValidationResult creates a new validation result
+func NewValidationResult() *ValidationResult <span class="cov8" title="1">{
+        return &amp;ValidationResult{
+                Errors:   []ValidationError{},
+                Warnings: []ValidationError{},
+                Info:     []ValidationError{},
+        }
+}</span>
+
+// AddError adds an error to the validation result
+func (r *ValidationResult) AddError(line int, message string) <span class="cov8" title="1">{
+        r.Errors = append(r.Errors, ValidationError{Line: line, Message: message, Level: LevelError})
+}</span>
+
+// AddWarning adds a warning to the validation result
+func (r *ValidationResult) AddWarning(line int, message string) <span class="cov8" title="1">{
+        r.Warnings = append(r.Warnings, ValidationError{Line: line, Message: message, Level: LevelWarning})
+}</span>
+
+// AddInfo adds an info message to the validation result
+func (r *ValidationResult) AddInfo(line int, message string) <span class="cov8" title="1">{
+        r.Info = append(r.Info, ValidationError{Line: line, Message: message, Level: LevelInfo})
+}</span>
+
+// HasErrors returns true if there are any errors
+func (r *ValidationResult) HasErrors() bool <span class="cov8" title="1">{
+        return len(r.Errors) &gt; 0
+}</span>
+
+// HasWarnings returns true if there are any warnings
+func (r *ValidationResult) HasWarnings() bool <span class="cov8" title="1">{
+        return len(r.Warnings) &gt; 0
+}</span>
+
+// ValidateFile validates a markdown task file
+func ValidateFile(content string) *ValidationResult <span class="cov8" title="1">{
+        result := NewValidationResult()
+        lines := strings.Split(content, "\n")
+
+        for i, line := range lines </span><span class="cov8" title="1">{
+                lineNum := i + 1
+                validateLine(line, lineNum, result)
+        }</span>
+
+        // Global validations
+        <span class="cov8" title="1">validateGlobal(content, result)
+
+        return result</span>
+}
+
+// validateLine validates a single line
+func validateLine(line string, lineNum int, result *ValidationResult) <span class="cov8" title="1">{
+        // Skip empty lines
+        if strings.TrimSpace(line) == "" </span><span class="cov8" title="1">{
+                return
+        }</span>
+
+        // Check for valid task format
+        <span class="cov8" title="1">if strings.HasPrefix(strings.TrimSpace(line), "- [") </span><span class="cov8" title="1">{
+                validateTaskLine(line, lineNum, result)
+        }</span> else<span class="cov8" title="1"> if strings.HasPrefix(strings.TrimSpace(line), "#") </span><span class="cov8" title="1">{
+                validateHeaderLine(line, lineNum, result)
+        }</span> else<span class="cov8" title="1"> if strings.HasPrefix(strings.TrimSpace(line), "- ") </span><span class="cov0" title="0">{
+                validateDetailLine(line, lineNum, result)
+        }</span>
+}
+
+// validateTaskLine validates a task line
+func validateTaskLine(line string, lineNum int, result *ValidationResult) <span class="cov8" title="1">{
+        // Check for valid task status format
+        taskRe := regexp.MustCompile(`^\s*- \[([^\]]+)\]\s*(.*)`)
+        matches := taskRe.FindStringSubmatch(line)
+        if len(matches) &lt; 3 </span><span class="cov8" title="1">{
+                result.AddError(lineNum, "Invalid task format")
+                return
+        }</span>
+
+        <span class="cov8" title="1">status := matches[1]
+        title := strings.TrimSpace(matches[2])
+
+        // Validate status
+        validStatuses := []string{" ", "x", "X", "w", "W", "b", "B"}
+        isValidStatus := false
+        for _, valid := range validStatuses </span><span class="cov8" title="1">{
+                if status == valid </span><span class="cov8" title="1">{
+                        isValidStatus = true
+                        break</span>
+                }
+        }
+
+        <span class="cov8" title="1">if !isValidStatus </span><span class="cov8" title="1">{
+                result.AddWarning(lineNum, fmt.Sprintf("Unknown status '%s'", status))
+        }</span>
+
+        // Check for empty title
+        <span class="cov8" title="1">if title == "" </span><span class="cov8" title="1">{
+                result.AddWarning(lineNum, "Task has no title")
+        }</span>
+
+        // Check for active marker
+        <span class="cov8" title="1">if strings.Contains(line, "!!") </span><span class="cov8" title="1">{
+                if !strings.Contains(status, " ") &amp;&amp; !strings.Contains(status, "w") &amp;&amp; !strings.Contains(status, "W") </span><span class="cov0" title="0">{
+                        result.AddWarning(lineNum, "Active task (!!) should have empty or 'w' status")
+                }</span>
+        }
+
+        // Check for priority and effort format
+        <span class="cov8" title="1">priorityRe := regexp.MustCompile(`\b([A-Z])(\d+)\b`)
+        priorityMatches := priorityRe.FindStringSubmatch(line)
+        if len(priorityMatches) &gt;= 3 </span><span class="cov8" title="1">{
+                priority := priorityMatches[1]
+                effort := priorityMatches[2]
+
+                // Validate priority letter
+                validPriorities := []string{"A", "B", "C", "D"}
+                isValidPriority := false
+                for _, valid := range validPriorities </span><span class="cov8" title="1">{
+                        if priority == valid </span><span class="cov8" title="1">{
+                                isValidPriority = true
+                                break</span>
+                        }
+                }
+
+                <span class="cov8" title="1">if !isValidPriority </span><span class="cov0" title="0">{
+                        result.AddWarning(lineNum, fmt.Sprintf("Unknown priority '%s'", priority))
+                }</span>
+
+                // Validate effort number (should be fibonacci-like)
+                <span class="cov8" title="1">fibonacciNumbers := []string{"1", "2", "3", "5", "8", "13", "21", "34", "55", "89"}
+                isValidEffort := false
+                for _, valid := range fibonacciNumbers </span><span class="cov8" title="1">{
+                        if effort == valid </span><span class="cov8" title="1">{
+                                isValidEffort = true
+                                break</span>
+                        }
+                }
+
+                <span class="cov8" title="1">if !isValidEffort </span><span class="cov0" title="0">{
+                        result.AddInfo(lineNum, fmt.Sprintf("Effort '%s' is not a standard fibonacci number", effort))
+                }</span>
+        }
+}
+
+// validateHeaderLine validates a header line
+func validateHeaderLine(line string, lineNum int, result *ValidationResult) <span class="cov8" title="1">{
+        // Check for proper header format
+        headerRe := regexp.MustCompile(`^(#{1,6})\s+(.+)$`)
+        matches := headerRe.FindStringSubmatch(line)
+        if len(matches) &lt; 3 </span><span class="cov0" title="0">{
+                result.AddWarning(lineNum, "Invalid header format")
+                return
+        }</span>
+
+        <span class="cov8" title="1">level := len(matches[1])
+        title := strings.TrimSpace(matches[2])
+
+        if title == "" </span><span class="cov0" title="0">{
+                result.AddWarning(lineNum, "Header has no title")
+        }</span>
+
+        <span class="cov8" title="1">if level &gt; 3 </span><span class="cov0" title="0">{
+                result.AddInfo(lineNum, "Consider using fewer header levels for better organization")
+        }</span>
+}
+
+// validateDetailLine validates a detail line
+func validateDetailLine(line string, lineNum int, result *ValidationResult) <span class="cov0" title="0">{
+        // Check for proper indentation
+        if !strings.HasPrefix(line, "  ") &amp;&amp; !strings.HasPrefix(line, "\t") </span><span class="cov0" title="0">{
+                result.AddWarning(lineNum, "Detail line should be indented")
+        }</span>
+
+        // Check for empty content
+        <span class="cov0" title="0">content := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(line, "  "), "\t"))
+        if content == "" </span><span class="cov0" title="0">{
+                result.AddWarning(lineNum, "Detail line has no content")
+        }</span>
+}
+
+// validateGlobal performs global validations
+func validateGlobal(content string, result *ValidationResult) <span class="cov8" title="1">{
+        lines := strings.Split(content, "\n")
+
+        // Check for file structure
+        hasHeader := false
+        taskCount := 0
+        completedCount := 0
+
+        for _, line := range lines </span><span class="cov8" title="1">{
+                trimmed := strings.TrimSpace(line)
+                if strings.HasPrefix(trimmed, "#") </span><span class="cov8" title="1">{
+                        hasHeader = true
+                }</span>
+                <span class="cov8" title="1">if strings.HasPrefix(trimmed, "- [") </span><span class="cov8" title="1">{
+                        taskCount++
+                        if strings.Contains(trimmed, "[x]") || strings.Contains(trimmed, "[X]") </span><span class="cov8" title="1">{
+                                completedCount++
+                        }</span>
+                }
+        }
+
+        <span class="cov8" title="1">if !hasHeader </span><span class="cov0" title="0">{
+                result.AddInfo(1, "Consider adding a header to organize your tasks")
+        }</span>
+
+        <span class="cov8" title="1">if taskCount == 0 </span><span class="cov8" title="1">{
+                result.AddWarning(1, "No tasks found in file")
+        }</span>
+
+        <span class="cov8" title="1">if taskCount &gt; 0 &amp;&amp; completedCount == taskCount </span><span class="cov0" title="0">{
+                result.AddInfo(1, "All tasks are completed - consider archiving or creating new tasks")
+        }</span>
+}
+
+// FormatValidationResult formats validation results for display
+func FormatValidationResult(result *ValidationResult) string <span class="cov8" title="1">{
+        var output strings.Builder
+
+        if len(result.Errors) == 0 &amp;&amp; len(result.Warnings) == 0 &amp;&amp; len(result.Info) == 0 </span><span class="cov8" title="1">{
+                output.WriteString("✅ No issues found\n")
+                return output.String()
+        }</span>
+
+        // Print errors
+        <span class="cov8" title="1">if len(result.Errors) &gt; 0 </span><span class="cov8" title="1">{
+                output.WriteString(fmt.Sprintf("❌ %d errors:\n", len(result.Errors)))
+                for _, err := range result.Errors </span><span class="cov8" title="1">{
+                        output.WriteString(fmt.Sprintf("  Line %d: %s\n", err.Line, err.Message))
+                }</span>
+                <span class="cov8" title="1">output.WriteString("\n")</span>
+        }
+
+        // Print warnings
+        <span class="cov8" title="1">if len(result.Warnings) &gt; 0 </span><span class="cov8" title="1">{
+                output.WriteString(fmt.Sprintf("⚠️  %d warnings:\n", len(result.Warnings)))
+                for _, warning := range result.Warnings </span><span class="cov8" title="1">{
+                        output.WriteString(fmt.Sprintf("  Line %d: %s\n", warning.Line, warning.Message))
+                }</span>
+                <span class="cov8" title="1">output.WriteString("\n")</span>
+        }
+
+        // Print info
+        <span class="cov8" title="1">if len(result.Info) &gt; 0 </span><span class="cov8" title="1">{
+                output.WriteString(fmt.Sprintf("ℹ️  %d suggestions:\n", len(result.Info)))
+                for _, info := range result.Info </span><span class="cov8" title="1">{
+                        output.WriteString(fmt.Sprintf("  Line %d: %s\n", info.Line, info.Message))
+                }</span>
+        }
+
+        <span class="cov8" title="1">return output.String()</span>
 } </pre>
 		
 		</div>
